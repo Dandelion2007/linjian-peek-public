@@ -25,6 +25,7 @@ import org.json.JSONObject;
 public class LockActivity extends Activity {
     private String pkg;
     private long gateAttempt;
+    private boolean resumed;
     private TextView titleView, remainView, reasonView, messageView;
     private EditText requestReasonInput;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -43,28 +44,36 @@ public class LockActivity extends Activity {
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (intent != null) {
+            setIntent(intent);
             if (intent.getStringExtra("package") != null) pkg = intent.getStringExtra("package");
             gateAttempt = intent.getLongExtra("gate_attempt", gateAttempt);
         }
-        AppGate.markLockActivityVisible(pkg, true, gateAttempt);
+        DebugState.gate(this, "LockActivity onNewIntent attempt=" + gateAttempt + " resumed=" + resumed + " task=" + getTaskId());
+        if (resumed) AppGate.markLockActivityVisible(this, pkg, true, gateAttempt);
         refresh();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        AppGate.markLockActivityVisible(pkg, true, gateAttempt);
+        resumed = true;
+        DebugState.gate(this, "LockActivity onResume attempt=" + gateAttempt + " task=" + getTaskId());
+        AppGate.markLockActivityVisible(this, pkg, true, gateAttempt);
         handler.removeCallbacks(tick);
         handler.post(tick);
     }
 
     @Override protected void onPause() {
+        resumed = false;
+        DebugState.gate(this, "LockActivity onPause attempt=" + gateAttempt + " task=" + getTaskId());
         handler.removeCallbacks(tick);
-        AppGate.markLockActivityVisible(pkg, false, gateAttempt);
+        AppGate.markLockActivityVisible(this, pkg, false, gateAttempt);
         super.onPause();
     }
 
     @Override protected void onDestroy() {
-        AppGate.markLockActivityVisible(pkg, false, gateAttempt);
+        handler.removeCallbacksAndMessages(null);
+        DebugState.gate(this, "LockActivity onDestroy attempt=" + gateAttempt + " task=" + getTaskId());
+        AppGate.markLockActivityVisible(this, pkg, false, gateAttempt);
         super.onDestroy();
     }
 

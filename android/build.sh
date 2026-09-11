@@ -20,6 +20,8 @@ fi
 rm -rf "$OUT"
 mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/apk" "$OUT/compiled_res"
 
+bash "$PROJECT/tests/run.sh"
+
 echo "=== Compiling resources ==="
 $BUILD_TOOLS/aapt2 compile --dir "$SRC/res" -o "$OUT/compiled_res/"
 
@@ -65,15 +67,18 @@ $BUILD_TOOLS/apksigner sign \
     --ks-pass pass:"$PUBLIC_KS_PASSWORD" \
     --key-pass pass:"$PUBLIC_KS_PASSWORD" \
     --ks-key-alias zhangxinchuang-public \
-    --out "$PROJECT/Zhangxinchuang-public-v0.3.8.6.apk" \
+    --out "$PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk" \
     app.aligned.apk
 
 echo "=== Verifying fixed public signature ==="
-VERIFY_OUTPUT=$($BUILD_TOOLS/apksigner verify --verbose --print-certs "$PROJECT/Zhangxinchuang-public-v0.3.8.6.apk")
+VERIFY_OUTPUT=$($BUILD_TOOLS/apksigner verify --verbose --print-certs "$PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk")
 echo "$VERIFY_OUTPUT"
 echo "$VERIFY_OUTPUT" | grep -qi "aea75c9b2b5f5c42d56b72d4a69a79a38e1c57f27db021017be8656bc8f002fb"
 
 echo ""
+echo "=== Artifact identity ==="
+$BUILD_TOOLS/aapt2 dump badging "$PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk" | head -n 1
+sha256sum "$PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk"
 echo "=== Done ==="
-echo "APK: $PROJECT/Zhangxinchuang-public-v0.3.8.6.apk"
-ls -lh "$PROJECT/Zhangxinchuang-public-v0.3.8.6.apk"
+echo "APK: $PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk"
+ls -lh "$PROJECT/Zhangxinchuang-public-v0.3.8.6-recents-fix.apk"

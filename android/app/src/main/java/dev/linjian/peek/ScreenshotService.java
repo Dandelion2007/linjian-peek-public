@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -39,6 +40,103 @@ public class ScreenshotService extends AccessibilityService {
     private Handler watchdog;
     private HandlerThread backgroundPollThread;
     private Handler backgroundPollHandler;
+    private final Handler gateHandler = new Handler(Looper.getMainLooper());
+    private int gateEventType;
+    private String gateEventPackage = "";
+    private boolean gateRetryPending;
+    private final Runnable gateRetry = () -> {
+        gateRetryPending = false;
+        checkGateForeground("settled-retry");
+    };
+    private final Runnable gateEarlyRetry = () -> checkGateForeground("animation-retry");
+    private String lastGateWindowLog = "";
+    private long lastGateWindowLogAt;
+    private String lastResolvedGatePackage = "";
+
+    /** Fresh window state only. Never substitute the last AccessibilityEvent package. */
+    public static String getConfirmedForegroundPackage() {
+        ScreenshotService svc = instance;
+        return svc == null ? "" : svc.resolveActivePackage();
+    }
+
+    private String resolveActivePackage() {
+        String rootPkg = "", activePkg = "", focusedPkg = "";
+        boolean ownOverlayActive = false, activeFound = false, focusedFound = false;
+        StringBuilder windowDetails = new StringBuilder();
+        AccessibilityNodeInfo root = null;
+        try {
+            root = getRootInActiveWindow();
+            if (root != null) {
+                rootPkg = nodePackage(root);
+                ownOverlayActive = AppGate.isGateOverlayNode(root);
+            }
+        } catch (Exception ignored) {
+        } finally { if (root != null) root.recycle(); }
+        try {
+            for (AccessibilityWindowInfo window : getWindows()) {
+                AccessibilityNodeInfo node = null;
+                try {
+                    if (!window.isActive() && !window.isFocused()) continue;
+                    node = window.getRoot();
+                    windowDetails.append(" [id=").append(window.getId()).append(" type=").append(window.getType())
+                            .append(" layer=").append(window.getLayer()).append(" active=").append(window.isActive())
+                            .append(" focused=").append(window.isFocused()).append(" pkg=").append(nodePackage(node)).append("]");
+                    boolean overlay = AppGate.isGateOverlayNode(node);
+                    if (window.isActive()) {
+                        // The enumerated active window supersedes a stale active-root snapshot.
+                        ownOverlayActive = overlay;
+                        if (!overlay) { activeFound = true; activePkg = nodePackage(node); }
+                    }
+                    if (window.isFocused() && !overlay) {
+                        focusedFound = true; focusedPkg = nodePackage(node);
+                    }
+                } finally {
+                    if (node != null) node.recycle();
+                    window.recycle();
+                }
+            }
+        } catch (Exception ignored) { }
+        // A known active/focused window with no root is unresolved, not a stale-root fallback.
+        String resolved = (activeFound && activePkg.isEmpty()) || (focusedFound && focusedPkg.isEmpty())
+                ? "" : GatePolicy.resolve(rootPkg, activePkg, focusedPkg, ownOverlayActive);
+        String details = "eventType=" + gateEventType + " eventPackage=" + gateEventPackage
+                + " resolvedActivePackage=" + resolved + " root=" + rootPkg
+                + " activeWindow=" + activePkg + " focusedWindow=" + focusedPkg
+                + " ownOverlayActive=" + ownOverlayActive + windowDetails;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (!details.equals(lastGateWindowLog) || now - lastGateWindowLogAt >= 2000) {
+            DebugState.gate(this, details);
+            lastGateWindowLog = details; lastGateWindowLogAt = now;
+        }
+        lastResolvedGatePackage = resolved;
+        return resolved;
+    }
+
+    private static String nodePackage(AccessibilityNodeInfo node) {
+        return node == null || node.getPackageName() == null ? "" : node.getPackageName().toString();
+    }
+
+    private void checkGateForeground(String reason) {
+        if (instance != this) return;
+        AppGate.onConfirmedForeground(this, resolveActivePackage(), reason);
+    }
+
+    public static void requestGateRecheck(String reason) {
+        ScreenshotService svc = instance;
+        if (svc == null) return;
+        svc.gateHandler.post(() -> {
+            svc.checkGateForeground(reason);
+            svc.scheduleGateRetries();
+        });
+    }
+
+    private void scheduleGateRetries() {
+        // Two bounded retries per burst; content-event storms must not postpone them forever.
+        if (gateRetryPending) return;
+        gateRetryPending = true;
+        gateHandler.postDelayed(gateEarlyRetry, 100);
+        gateHandler.postDelayed(gateRetry, 450);
+    }
 
     public static ScreenshotService getInstance() { return instance; }
     public static boolean ready() { return instance != null; }
@@ -96,6 +194,7 @@ public class ScreenshotService extends AccessibilityService {
         watchdog = new Handler(Looper.getMainLooper());
         watchdog.postDelayed(watchdogTick, 15000);
         startBackgroundPolling();
+        requestGateRecheck("service-connected");
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -103,17 +202,21 @@ public class ScreenshotService extends AccessibilityService {
         CharSequence pkg = event.getPackageName();
         if (pkg != null) currentPackage = pkg.toString();
         int t = event.getEventType();
+        if (t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+                || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                || t == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            gateEventType = t;
+            gateEventPackage = pkg == null ? "" : pkg.toString();
+            checkGateForeground("accessibility-event");
+            if (lastResolvedGatePackage.isEmpty() || t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED)
+                scheduleGateRetries();
+        }
+        // Gate checks precede the more expensive screen-tree traversal.
         if (t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || t == AccessibilityEvent.TYPE_VIEW_SCROLLED) updateScreenText();
         if (t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != null) {
             ActivityEventStore.recordForegroundChange(this, pkg.toString());
             FocusMode.onForegroundPackage(this, pkg.toString());
-        }
-        if (pkg != null && (
-                t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED
-                || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                || t == AccessibilityEvent.TYPE_VIEW_SCROLLED)) {
-            AppGate.onForegroundPackage(this, pkg.toString());
         }
     }
     @Override public void onInterrupt() { DebugState.append(this, "无障碍服务被中断"); }
@@ -121,6 +224,9 @@ public class ScreenshotService extends AccessibilityService {
     private void markDisconnected(String reason) {
         DebugState.append(this, reason);
         instance = null;
+        gateHandler.removeCallbacksAndMessages(null);
+        gateRetryPending = false;
+        AppGate.onServiceDisconnected(this);
         currentPackage = "";
         screenText = "";
         screenNodesJson = "[]";
