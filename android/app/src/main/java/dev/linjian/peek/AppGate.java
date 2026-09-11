@@ -53,7 +53,9 @@ public class AppGate {
     private static volatile View overlayView = null;
     private static volatile WindowManager overlayWindowManager = null;
     private static volatile String visibleLockActivityPackage = "";
-    private static volatile long visibleLockActivityAt = 0;
+    private static volatile long gateAttemptSequence = 0;
+    private static volatile String confirmedLockActivityPackage = "";
+    private static volatile long confirmedGateAttempt = 0;
 
     public static boolean enabled(Context ctx) { return AppPrefs.get(ctx).getBoolean(KEY_ENABLED, true); }
 
@@ -291,20 +293,32 @@ public class AppGate {
         catch (Exception e) { return false; }
     }
 
-    public static void markLockActivityVisible(String pkg, boolean visible) {
+    public static void markLockActivityVisible(String pkg, boolean visible, long gateAttempt) {
         if (visible) {
             visibleLockActivityPackage = pkg == null ? "" : pkg;
-            visibleLockActivityAt = System.currentTimeMillis();
+            if (gateAttempt > 0) {
+                confirmedLockActivityPackage = visibleLockActivityPackage;
+                confirmedGateAttempt = Math.max(confirmedGateAttempt, gateAttempt);
+            }
+            // Activity 已经成功显示时，不应再让较早启动的悬浮层覆盖它。
+            removeOverlay();
         } else {
             visibleLockActivityPackage = "";
-            visibleLockActivityAt = 0;
         }
     }
 
     private static boolean isLockActivityVisibleFor(String pkg) {
+        return pkg != null && pkg.equals(visibleLockActivityPackage);
+    }
+
+    private static synchronized long nextGateAttempt() {
+        return ++gateAttemptSequence;
+    }
+
+    private static boolean wasLockActivityConfirmed(String pkg, long gateAttempt) {
         return pkg != null
-                && pkg.equals(visibleLockActivityPackage)
-                && System.currentTimeMillis() - visibleLockActivityAt < 3000;
+                && pkg.equals(confirmedLockActivityPackage)
+                && confirmedGateAttempt >= gateAttempt;
     }
 
     private static void showGateByPriority(final Context ctx, final String pkg, final JSONObject lock) {
@@ -313,22 +327,26 @@ public class AppGate {
 
         // v0.3.8.6：应用门禁优先级调整为「全屏锁定页 > 全屏悬浮遮罩 > 回到桌面」。
         // 这样 OPPO/ColorOS 上即使悬浮窗或后台弹层被系统限制，也会先尝试最强的 Activity 拦截。
-        showLockActivity(app, pkg);
+        final long gateAttempt = showLockActivity(app, pkg);
 
         main.postDelayed(() -> {
+            // 门禁页只要曾经为本次（或更新的）拦截成功进入 onResume，就不能因为
+            // 最近任务触发 onPause 而被旧的延迟任务误判为“启动失败”。
+            if (wasLockActivityConfirmed(pkg, gateAttempt)) return;
             if (isLockActivityVisibleFor(pkg)) return;
             if (canDrawOverlay(app)) {
                 DebugState.append(app, "应用门禁：全屏锁定页未确认显示，改用全屏悬浮遮罩兜底；目标=" + pkg);
-                showOverlayLock(app, pkg, lock);
+                showOverlayLock(app, pkg, lock, gateAttempt);
             } else {
-                goHome(app, "全屏锁定页未确认显示，且没有悬浮窗权限");
+                goHomeIfUnconfirmed(app, pkg, gateAttempt, "全屏锁定页未确认显示，且没有悬浮窗权限");
             }
         }, 700);
 
         main.postDelayed(() -> {
+            if (wasLockActivityConfirmed(pkg, gateAttempt)) return;
             if (isLockActivityVisibleFor(pkg)) return;
             if (overlayView != null) return;
-            goHome(app, "全屏锁定页与悬浮遮罩均未确认显示");
+            goHomeIfUnconfirmed(app, pkg, gateAttempt, "全屏锁定页与悬浮遮罩均未确认显示");
         }, 1400);
     }
 
@@ -361,23 +379,35 @@ public class AppGate {
         }
     }
 
-    private static void showLockActivity(Context ctx, String pkg) {
-        try {
-            markLockActivityVisible(pkg, false);
-            Intent i = new Intent(ctx, LockActivity.class);
-            i.putExtra("package", pkg);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            ctx.startActivity(i);
-            DebugState.append(ctx, "门禁启动全屏锁定页：" + pkg);
-        } catch (Exception e) { DebugState.append(ctx, "门禁启动全屏锁定页失败：" + ScreenshotService.shortMsg(e)); }
+    private static void goHomeIfUnconfirmed(Context ctx, String pkg, long gateAttempt, String reason) {
+        if (wasLockActivityConfirmed(pkg, gateAttempt) || isLockActivityVisibleFor(pkg)) {
+            DebugState.append(ctx, "应用门禁取消兜底 Home：全屏锁定页已成功显示；目标=" + pkg);
+            return;
+        }
+        goHome(ctx, reason);
     }
 
-    private static void showOverlayLock(final Context ctx, final String pkg, final JSONObject lock) {
+    private static long showLockActivity(Context ctx, String pkg) {
+        long gateAttempt = nextGateAttempt();
+        try {
+            markLockActivityVisible(pkg, false, gateAttempt);
+            Intent i = new Intent(ctx, LockActivity.class);
+            i.putExtra("package", pkg);
+            i.putExtra("gate_attempt", gateAttempt);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            ctx.startActivity(i);
+            DebugState.append(ctx, "门禁启动全屏锁定页：" + pkg + "；attempt=" + gateAttempt);
+        } catch (Exception e) { DebugState.append(ctx, "门禁启动全屏锁定页失败：" + ScreenshotService.shortMsg(e)); }
+        return gateAttempt;
+    }
+
+    private static void showOverlayLock(final Context ctx, final String pkg, final JSONObject lock, final long gateAttempt) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
+                if (wasLockActivityConfirmed(pkg, gateAttempt) || isLockActivityVisibleFor(pkg)) return;
                 final Context app = ctx.getApplicationContext();
                 final WindowManager wm = (WindowManager) app.getSystemService(Context.WINDOW_SERVICE);
-                if (wm == null) { goHome(ctx, "WindowManager 为空，悬浮遮罩无法显示"); return; }
+                if (wm == null) { goHomeIfUnconfirmed(ctx, pkg, gateAttempt, "WindowManager 为空，悬浮遮罩无法显示"); return; }
                 removeOverlay();
 
                 // 悬浮窗兜底必须是「全屏触摸拦截层」，不能只是中间一张卡片。
@@ -461,7 +491,7 @@ public class AppGate {
                 DebugState.append(app, "门禁悬浮层已启动：touch_blocking=true；目标=" + pkg);
             } catch (Exception e) {
                 DebugState.append(ctx, "门禁悬浮层失败，回到桌面兜底：" + ScreenshotService.shortMsg(e));
-                goHome(ctx, "悬浮遮罩显示失败");
+                goHomeIfUnconfirmed(ctx, pkg, gateAttempt, "悬浮遮罩显示失败");
             }
         });
     }

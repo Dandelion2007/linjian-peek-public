@@ -24,6 +24,7 @@ import org.json.JSONObject;
 
 public class LockActivity extends Activity {
     private String pkg;
+    private long gateAttempt;
     private TextView titleView, remainView, reasonView, messageView;
     private EditText requestReasonInput;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -33,6 +34,7 @@ public class LockActivity extends Activity {
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         pkg = getIntent() == null ? "" : getIntent().getStringExtra("package");
+        gateAttempt = getIntent() == null ? 0 : getIntent().getLongExtra("gate_attempt", 0);
         if (pkg == null) pkg = "";
         buildUi();
         refresh();
@@ -40,26 +42,29 @@ public class LockActivity extends Activity {
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (intent != null && intent.getStringExtra("package") != null) pkg = intent.getStringExtra("package");
-        AppGate.markLockActivityVisible(pkg, true);
+        if (intent != null) {
+            if (intent.getStringExtra("package") != null) pkg = intent.getStringExtra("package");
+            gateAttempt = intent.getLongExtra("gate_attempt", gateAttempt);
+        }
+        AppGate.markLockActivityVisible(pkg, true, gateAttempt);
         refresh();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        AppGate.markLockActivityVisible(pkg, true);
+        AppGate.markLockActivityVisible(pkg, true, gateAttempt);
         handler.removeCallbacks(tick);
         handler.post(tick);
     }
 
     @Override protected void onPause() {
         handler.removeCallbacks(tick);
-        AppGate.markLockActivityVisible(pkg, false);
+        AppGate.markLockActivityVisible(pkg, false, gateAttempt);
         super.onPause();
     }
 
     @Override protected void onDestroy() {
-        AppGate.markLockActivityVisible(pkg, false);
+        AppGate.markLockActivityVisible(pkg, false, gateAttempt);
         super.onDestroy();
     }
 
