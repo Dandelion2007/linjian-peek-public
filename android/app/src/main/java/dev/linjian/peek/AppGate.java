@@ -276,7 +276,9 @@ public class AppGate {
             JSONObject lock = activeLockFor(ctx, pkg, now);
             if (lock == null) return;
             if (isTemporarilyAllowed(ctx, lock, now, true)) return;
-            if (pkg.equals(lastGatePackage) && now - lastGateAt < 1800) return;
+            if (pkg.equals(lastGatePackage) && now - lastGateAt < 350) return;
+            if (isLockActivityVisibleFor(pkg)) return;
+            if (overlayView != null) return;
             lastGatePackage = pkg; lastGateAt = now;
             showGateByPriority(ctx, pkg, lock);
             log(ctx, "门禁拦截：" + lock.optString("app_name", pkg) + "（全屏页优先，遮罩兜底，Home 最后兜底）");
