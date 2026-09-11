@@ -4,6 +4,10 @@ package dev.linjian.peek;
 final class GatePolicy {
     private GatePolicy() { }
 
+    static boolean isConfirmedTransition(String previous, String next) {
+        return !next.isEmpty() && !next.equals(previous);
+    }
+
     static String resolve(String root, String active, String focused, boolean ownOverlayActive) {
         // An accessibility overlay can be touched while the app underneath retains input focus.
         if (ownOverlayActive) return focused;

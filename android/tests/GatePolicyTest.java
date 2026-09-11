@@ -10,6 +10,9 @@ public final class GatePolicyTest {
         if (!condition) throw new AssertionError(message);
     }
     public static void main(String[] args) {
+        check(!GatePolicy.isConfirmedTransition(XHS, ""), "unknown window must not create another task visit");
+        check(!GatePolicy.isConfirmedTransition(XHS, XHS), "same foreground is not a new visit");
+        check(GatePolicy.isConfirmedTransition(RECENTS, XHS), "recents reentry is a confirmed transition");
         check(XHS.equals(GatePolicy.resolve(XHS, XHS, XHS, false)), "desktop -> target");
         check(RECENTS.equals(GatePolicy.resolve(XHS, RECENTS, RECENTS, false)), "prefer current windows over stale root");
         check(GatePolicy.resolve(XHS, XHS, RECENTS, false).isEmpty(), "animation conflict must not gate/home");

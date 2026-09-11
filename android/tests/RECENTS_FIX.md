@@ -29,7 +29,9 @@ Events trigger checks plus bounded 100/450 ms retries for window transitions or
 unknown state; retries do not reschedule themselves. Null-package events also work.
 Gate checks run before the existing screen-tree traversal.
 
-AppGate invalidates pending callbacks on foreground changes. Only the current
+AppGate invalidates pending callbacks on confirmed foreground changes. Unknown
+windows suspend coverage without pretending another app was entered; when evidence
+returns the same attempt is reverified without launching a duplicate Activity. Only the current
 attempt on the currently locked foreground target can overlay or fall back Home.
 Lifecycle visibility is owned by the Activity instance, revoked on pause, and only
 confirmed when the resolved foreground is this app. Pause requests a new window

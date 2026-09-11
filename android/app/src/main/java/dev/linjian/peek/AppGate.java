@@ -52,6 +52,8 @@ public class AppGate {
     private static String confirmedForegroundPackage = "";
     private static String pendingGatePackage = "";
     private static boolean attemptPending;
+    private static boolean pendingWindowRecheck;
+    private static long attemptStartedAt;
     private static String overlayPackage = "";
     static final String OVERLAY_MARKER = "dev.linjian.peek.AppGateOverlay";
     private static Object visibleActivityOwner;
@@ -290,7 +292,17 @@ public class AppGate {
             return;
         }
         if (pkg == null) pkg = "";
-        boolean transition = !pkg.equals(confirmedForegroundPackage);
+        if (pkg.isEmpty()) {
+            // Unknown is not a confirmed task transition. Keep the attempt identity,
+            // but suspend its coverage and verify again when window evidence returns.
+            confirmedGateAttempt = 0;
+            confirmedLockActivityPackage = "";
+            pendingWindowRecheck = attemptPending;
+            removeOverlay();
+            trace(ctx, "skip: unresolved-window; suspend coverage reason=" + reason);
+            return;
+        }
+        boolean transition = GatePolicy.isConfirmedTransition(confirmedForegroundPackage, pkg);
         if (transition) {
             confirmedForegroundPackage = pkg;
             invalidateAttempt();
@@ -315,6 +327,15 @@ public class AppGate {
             if (attemptPending) invalidateAttempt();
             trace(ctx, "skip: safe/unresolved/unlocked reason=" + reason + " transition=" + transition);
             return;
+        }
+        if (pendingWindowRecheck && attemptPending && pkg.equals(pendingGatePackage)) {
+            pendingWindowRecheck = false;
+            long elapsed = android.os.SystemClock.uptimeMillis() - attemptStartedAt;
+            if (elapsed >= 700) {
+                verifyAttempt(ctx, pkg, gateAttemptSequence, elapsed >= 1400);
+                return;
+            }
+            // The original bounded verification is still scheduled; don't launch Gate again.
         }
         if ("lock-pause/destroy".equals(reason) && attemptPending && pkg.equals(pendingGatePackage)) {
             verifyAttempt(ctx, pkg, gateAttemptSequence, false);
@@ -370,6 +391,7 @@ public class AppGate {
     private static void invalidateAttempt() {
         ++gateAttemptSequence;
         attemptPending = false;
+        pendingWindowRecheck = false;
         pendingGatePackage = "";
         if (fallbackEarly != null) GATE_MAIN.removeCallbacks(fallbackEarly);
         if (fallbackLate != null) GATE_MAIN.removeCallbacks(fallbackLate);
@@ -382,6 +404,7 @@ public class AppGate {
         final long attempt = gateAttemptSequence;
         pendingGatePackage = pkg;
         attemptPending = true;
+        attemptStartedAt = android.os.SystemClock.uptimeMillis();
         showLockActivity(app, pkg, attempt);
         fallbackEarly = () -> verifyAttempt(app, pkg, attempt, false);
         fallbackLate = () -> verifyAttempt(app, pkg, attempt, true);
