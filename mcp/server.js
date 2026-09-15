@@ -3,6 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import fs from "fs";
 import path from "path";
 
@@ -60,6 +62,46 @@ const COMMAND_QUEUE_TIMEOUT_MS = Number(process.env.LINJIAN_COMMAND_QUEUE_TIMEOU
 const COMMAND_STATUS_TIMEOUT_MS = Number(process.env.LINJIAN_COMMAND_STATUS_TIMEOUT_MS || 1500);
 const DEFAULT_COMMAND_WAIT_SECONDS = Number(process.env.LINJIAN_DEFAULT_COMMAND_WAIT_SECONDS || 5);
 const MAX_TOOL_WAIT_SECONDS = Number(process.env.LINJIAN_MAX_TOOL_WAIT_SECONDS || 12);
+const diagnosticContext = new AsyncLocalStorage();
+
+function diagnosticText(value, limit = 180) {
+  const clean = String(value ?? "").replace(/[\r\n]/g, " ").trim();
+  return clean.length <= limit ? clean : clean.slice(0, limit);
+}
+
+function diagnosticLog(event, fields = {}) {
+  try {
+    console.log(JSON.stringify({ event, timestamp: new Date().toISOString(), ...fields }));
+  } catch {}
+}
+
+function toolInvocationContext(body, endpoint) {
+  const messages = Array.isArray(body) ? body : [body];
+  const calls = messages.filter((item) => item && item.method === "tools/call");
+  const contexts = calls.map((call) => {
+    const args = call?.params?.arguments;
+    const safeArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+    const deviceIdExplicit = Object.prototype.hasOwnProperty.call(safeArgs, "device_id");
+    const context = {
+      request_id: randomUUID(),
+      mcp_request_id: diagnosticText(call?.id, 120),
+      tool_name: diagnosticText(call?.params?.name, 120),
+      device_id_explicit: deviceIdExplicit,
+      source_device_id: deviceIdExplicit ? diagnosticText(safeArgs.device_id, 180) : null,
+      endpoint
+    };
+    diagnosticLog("MCP_TOOL_INVOCATION", context);
+    return context;
+  });
+  // A single invocation can be correlated safely through the async call chain.
+  // Never guess a per-command association for a JSON-RPC batch.
+  return contexts.length === 1 ? contexts[0] : null;
+}
+
+function runWithToolInvocation(body, endpoint, callback) {
+  const context = toolInvocationContext(body, endpoint);
+  return context ? diagnosticContext.run(context, callback) : callback();
+}
 
 const CARE_STATE_PATH = process.env.LINJIAN_CARE_STATE_PATH || path.join(process.cwd(), "care_state.json");
 const VISIT_STATE_PATH = process.env.LINJIAN_VISIT_STATE_PATH || path.join(process.cwd(), "visit_state.json");
@@ -709,13 +751,38 @@ async function linjianFetch(path, options = {}) {
 }
 
 async function postCommand(payload) {
+  const context = diagnosticContext.getStore() || {};
+  const requestId = diagnosticText(context.request_id, 180);
+  const resolvedDeviceId = diagnosticText(payload?.device_id, 180);
+  diagnosticLog("MCP_COMMAND_REQUEST", {
+    request_id: requestId || null,
+    mcp_request_id: context.mcp_request_id || null,
+    tool_name: context.tool_name || null,
+    device_id_explicit: context.device_id_explicit ?? null,
+    source_device_id: context.source_device_id ?? null,
+    resolved_device_id: resolvedDeviceId,
+    action: diagnosticText(payload?.action, 120),
+    package: diagnosticText(payload?.package, 240)
+  });
+  const headers = { "Content-Type": "application/json" };
+  if (requestId) headers["X-Linjian-Request-ID"] = requestId;
   const res = await linjianFetch("/api/command", {
     method: "POST",
     timeout_ms: COMMAND_QUEUE_TIMEOUT_MS,
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload)
   });
-  return await res.json();
+  const result = await res.json();
+  diagnosticLog("MCP_COMMAND_LINKED", {
+    request_id: requestId || null,
+    mcp_request_id: context.mcp_request_id || null,
+    tool_name: context.tool_name || null,
+    command_id: diagnosticText(result?.command?.id, 180) || null,
+    resolved_device_id: resolvedDeviceId,
+    action: diagnosticText(payload?.action, 120),
+    ok: Boolean(result?.ok)
+  });
+  return result;
 }
 
 
@@ -2208,12 +2275,12 @@ app.get("/health", (_req, res) => res.json({
   stability_note: "v0.3.8.6 修复日记写入 book_id 兜底，并保留 v0.3.8.2 的部分客户端不暴露小金库/外卖新增 MCP 工具：普通 /mcp 提前注册统一入口，新增 /mcp-wallet 专用端点，并把专注模式工具前置注册。"
 }));
 app.post("/mcp", async (req, res) => {
-  try { const server = makeServer(); const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); res.on("close", () => transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body); }
+  try { await runWithToolInvocation(req.body, "/mcp", async () => { const server = makeServer(); const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); res.on("close", () => transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body); }); }
   catch (err) { console.error(err); if (!res.headersSent) res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: String(err?.message || err) }, id: null }); }
 });
 app.get("/mcp", (_req, res) => res.status(405).json({ ok: false, error: "Use POST /mcp for Streamable HTTP MCP." }));
 app.post("/mcp-wallet", async (req, res) => {
-  try { const server = makeWalletTakeoutServer(); const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); res.on("close", () => transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body); }
+  try { await runWithToolInvocation(req.body, "/mcp-wallet", async () => { const server = makeWalletTakeoutServer(); const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); res.on("close", () => transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body); }); }
   catch (err) { console.error(err); if (!res.headersSent) res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: String(err?.message || err) }, id: null }); }
 });
 app.get("/mcp-wallet", (_req, res) => res.status(405).json({ ok: false, error: "Use POST /mcp-wallet for wallet/takeout Streamable HTTP MCP.", endpoint: "/mcp-wallet" }));
@@ -2222,7 +2289,7 @@ app.get("/sse", async (_req, res) => {
   try { const transport = new SSEServerTransport("/messages", res); sseTransports.set(transport.sessionId, transport); res.on("close", () => { sseTransports.delete(transport.sessionId); transport.close(); }); await makeServer().connect(transport); }
   catch (err) { console.error(err); if (!res.headersSent) res.status(500).end(String(err?.message || err)); }
 });
-app.post("/messages", async (req, res) => { const sessionId = req.query.sessionId; const transport = sseTransports.get(sessionId); if (!transport) return res.status(404).send("No SSE transport for sessionId"); await transport.handlePostMessage(req, res, req.body); });
+app.post("/messages", async (req, res) => { const sessionId = req.query.sessionId; const transport = sseTransports.get(sessionId); if (!transport) return res.status(404).send("No SSE transport for sessionId"); await runWithToolInvocation(req.body, "/messages", () => transport.handlePostMessage(req, res, req.body)); });
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`掌心窗 unified MCP listening on 0.0.0.0:${PORT}`);
   console.log(`LINJIAN_URL=${RAW_LINJIAN_URL || "<missing>"}`);
