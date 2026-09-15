@@ -220,7 +220,9 @@ class State:
         self.shots_dir.mkdir(parents=True, exist_ok=True)
         self.commands: list[dict] = []
         self.command_history: dict[str, dict] = {}
+        self.command_request_ids: dict[str, str] = {}
         self.commands_lock = Lock()
+        self.diagnostic_instance_id = (os.environ.get("RENDER_INSTANCE_ID", "").strip() or str(uuid.uuid4()))
         self.device_states: dict[str, dict] = {}
         self.unlock_requests: list[dict] = []
         self.companion_path = self.data_dir / "companion_state.json"
@@ -408,6 +410,22 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         sys.stderr.write("[linjian-unified] %s - %s\n" % (self.address_string(), fmt % args))
 
+    def _diagnostic_log(self, event: str, **fields) -> None:
+        try:
+            payload = {
+                "event": event,
+                "timestamp": now_iso(),
+                "instance_id": self.state.diagnostic_instance_id,
+                **fields,
+            }
+            self.log_message("%s", json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+        except Exception:
+            pass
+
+    def _diagnostic_request_id(self) -> str:
+        value = (self.headers.get("X-Linjian-Request-ID", "") or "").replace("\r", " ").replace("\n", " ").strip()
+        return value[:180]
+
     def _send_bytes(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
@@ -483,6 +501,10 @@ class Handler(BaseHTTPRequestHandler):
                 cmd = self.state.commands.pop(idx)
                 cmd["status"] = "dispatched"; cmd["dispatched_at"] = now_iso()
                 self.state.command_history[cmd.get("id", "")] = dict(cmd)
+                request_id = self.state.command_request_ids.get(cmd.get("id", ""), "")
+            self._diagnostic_log("COMMAND_DISPATCHED", command_id=cmd.get("id", ""), request_id=request_id or None,
+                                 device_id=cmd.get("device_id", ""), status=cmd.get("status", ""),
+                                 dispatched_at=cmd.get("dispatched_at"))
             self._json(200, {"ok": True, "command": cmd})
             return
         if path == "/api/latest.json":
@@ -551,6 +573,7 @@ class Handler(BaseHTTPRequestHandler):
             self._queue(make_command(DEFAULT_DEVICE, "peek")); self._json(200, {"ok": True, "queued": True}); return
         if path == "/api/command":
             if not self._require_token(): return
+            request_id = self._diagnostic_request_id()
             data = self._read_json()
             cmd = make_command(data.get("device_id") or DEFAULT_DEVICE, data.get("action") or "noop", data.get("app") or "", data.get("package") or "", data.get("payload") or data)
             action = cmd.get("action") or "noop"
@@ -577,9 +600,16 @@ class Handler(BaseHTTPRequestHandler):
                 "status": "pending", "metadata_json": {"command_id": cmd.get("id")}
             })
             cmd["activity_event_id"] = event.get("id")
+            if request_id:
+                with self.state.commands_lock:
+                    self.state.command_request_ids[cmd.get("id", "")] = request_id
             self._queue(cmd)
             with self.state.commands_lock:
                 self.state.command_history[cmd.get("id", "")] = dict(cmd)
+            self._diagnostic_log("COMMAND_CREATED", command_id=cmd.get("id", ""), request_id=request_id or None,
+                                 device_id=cmd.get("device_id", ""), action=cmd.get("action", ""),
+                                 package=cmd.get("package", ""), status=cmd.get("status", ""),
+                                 created_at=cmd.get("created_at"))
             self._json(200, {"ok": True, "command": cmd}); return
         if path == "/api/device/state":
             if not self._require_token(): return
@@ -591,6 +621,7 @@ class Handler(BaseHTTPRequestHandler):
             data = self._read_json()
             cid = data.get("command_id") or data.get("id") or ""
             completed_cmd = None
+            request_id = ""
             with self.state.commands_lock:
                 cmd = self.state.command_history.get(cid)
                 if cmd is not None:
@@ -599,7 +630,13 @@ class Handler(BaseHTTPRequestHandler):
                     cmd["result"] = data.get("result", "")
                     cmd["report"] = data
                     completed_cmd = dict(cmd)
+                    request_id = self.state.command_request_ids.get(cid, "")
             if completed_cmd is not None:
+                self._diagnostic_log("COMMAND_COMPLETED", command_id=cid, request_id=request_id or None,
+                                     device_id=completed_cmd.get("device_id", ""),
+                                     reporting_device_id=clip_text(str(data.get("device_id") or ""), 180),
+                                     status=completed_cmd.get("status", ""), completed_at=completed_cmd.get("completed_at"),
+                                     ok=bool(data.get("ok")))
                 try:
                     self.state.add_activity_event({
                         "id": completed_cmd.get("activity_event_id") or cid, "device_id": completed_cmd.get("device_id") or DEFAULT_DEVICE,
