@@ -1,4 +1,11 @@
-# 掌心窗公开版 v0.3.9.0
+# 掌心窗公开版 v0.3.9.2
+
+## v0.3.9.2 门禁与强制抱回能力移除
+
+- 回家模式现在仅执行“检测使用时长 → 达到阈值 → 发普通提醒”，不再启动、切换、拦截或锁定任何 App。
+- 删除旧门禁、全机专注、强制抱回预设和对应 MCP/Worker capability；旧目标包、倒计时与冷却配置不再有执行路径。
+- 归电保留为可关闭的提醒页；“接通”只记录回应，不会打开目标 App。
+- Android 版本号：`0.3.9.2` / `30902`。
 
 ## v0.3.9.0 MCP 兼容与日记批注读取修复
 
@@ -20,14 +27,12 @@
 ## v0.3.8.7 回家模式设置生效修复
 
 - 配置变化后清空回家模式当前计时与冷却缓存，避免关闭后仍沿用旧状态。
-- 只弹窗模式不再要求必须设置返回目标 APP；未设置返回目标时仍会按阈值发悬浮横幅。
+- 回家模式按观察列表和阈值发送普通提醒。
 - 观察 APP 列表为空时回退到默认观察包名：抖音、小红书。
 - 版本号：`0.3.8.7` / `30807`，固定签名保持不变。
 
 
 
-- 修复部分 OPPO/ColorOS 设备锁定 App 后仍能继续滑动的问题。
-- 无障碍触发增加窗口变化、内容变化、滑动事件兜底，减少“锁了但没等到窗口切换”的漏拦截。
 - 版本号：`0.3.8.6` / `30806`，固定签名保持不变。
 
 
@@ -104,7 +109,6 @@
 
 ## v0.3.8.6 修复重点
 
-- 修复归电来电页「接通」后没有跳转到归电设置里指定包名的问题：接通后会读取 `guidian_target_package`，关闭来电页后再按包名启动目标 App，失败时写入调试日志并提示原因。
 - 修复陪伴页「xx 的行动」不显示 AI/MCP 工具调用记录的问题：MCP 行动会同步写入统一行动日志，手机端同步时会合并本地与远端行动记录，不再被本地旧记录遮挡。
 - Railway 文档改为手动双服务部署说明，移除 README 中未生成模板码的一键部署引导，避免用户误把 server 域名当成 MCP 域名。
 - 今日页「此刻状态」卡片新增媒体状态：用户开启通知使用权后，可显示正在播放的歌曲/音频标题、歌手、播放状态与来源 App。
@@ -400,7 +404,7 @@ Android 允许连接自建局域网 HTTP 地址；公网部署仍建议使用 HT
 MCP 详细工具说明见 [docs/mcp.md](docs/mcp.md)。常用工具分组如下：
 
 - **状态与截图**：`linjian_status`、`peek_screen`、`latest_screen`、`get_life_state`、`get_phone_state`、`get_screen_nodes`。
-- **点击与输入**：`tap_text`、`input_text`、`send_phone_command`、`run_sequence`、`run_preset`。
+- **点击与输入**：`tap_text`、`input_text`、`send_phone_command`、`run_sequence`。
 - **通知与提醒**：`send_notification`、`set_alarm`、`get_weather_state`、`send_weather_notification`。
 - **日历与窗语**：`get_window_whisper`、`set_window_whisper`、`list_guardian_days`、`add_guardian_day`、`update_guardian_day`、`delete_guardian_day`。
 - **TA 的日记**：创建/重命名日记本，写入、读取、搜索、更新和删除本机日记；正文不默认上传云端。

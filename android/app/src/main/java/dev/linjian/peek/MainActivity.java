@@ -76,8 +76,8 @@ public class MainActivity extends Activity {
     private TextView overviewBatteryLabel, overviewAppLabel, overviewScreenLabel, overviewWeatherLabel, quickSeeTitle, quickSeeDetail, quickSeeArrow, quickGuardTitle, quickGuardDetail, quickGuardArrow;
     private ImageView quickSeeIcon, quickGuardIcon;
     private TextView guidianSummaryText, guidianDetailText, guidianSettingsStatusText, guidianAvatarText, versionStatusText, updateChangelogText, licenseSummaryText;
-    private Button toggleButton, accessibilityButton, usageAccessButton, testButton, openXhsButton, openTargetAppButton, homeButton, backButton, recentsButton, alarmTestButton, notifyTestButton, refreshLifeButton;
-    private Button addPackageButton, testPackageButton, sequenceTestButton, addWeatherLocationButton, setCurrentWeatherButton;
+    private Button toggleButton, accessibilityButton, usageAccessButton, testButton, openXhsButton, homeButton, backButton, recentsButton, alarmTestButton, notifyTestButton, refreshLifeButton;
+    private Button addPackageButton, testPackageButton, addWeatherLocationButton, setCurrentWeatherButton;
     private Button testGuidianButton, saveGuidianSettingsButton, chooseGuidianAvatarButton, guidianThemeDuskButton, guidianThemeCloudButton, guidianThemeBerryButton;
     private Button themeCreamButton, themeBlueButton, themePeachButton, themeNightButton, themeMintButton, themePurpleButton, drawerThemeButton, drawerNowStateButton, locationPermissionButton, notificationListenerButton;
     private Button drawerConnectionButton, drawerPermissionButton, drawerControlTestButton, drawerKnownAppsButton, drawerHomeModeButton, drawerReminderButton, drawerCycleButton, drawerDebugButton, drawerLifeDetailsButton, drawerWeatherButton, drawerVersionButton, checkUpdateButton, downloadUpdateButton;
@@ -94,8 +94,8 @@ public class MainActivity extends Activity {
     private EditText weatherAliasInput, weatherCityInput, weatherNoteInput, calendarTitleInput, calendarDateInput, calendarGroupInput, calendarNoteInput;
     private EditText batteryThresholdInput, screenThresholdInput, waterIntervalInput, restIntervalInput;
     private EditText lastPeriodStartInput, cycleLengthInput, periodLengthInput, cycleRemindBeforeInput;
-    private EditText appAliasInput, appPackageInput, targetAppsInput, homeThresholdInput, homeCooldownInput, homeTargetInput;
-    private EditText guidianIntervalInput, guidianCooldownInput, guidianDailyMaxInput, guidianQuietStartInput, guidianQuietEndInput, guidianTargetPackageInput, guidianPromptInput, guidianReasonInput;
+    private EditText appAliasInput, appPackageInput, targetAppsInput, homeThresholdInput, homeCooldownInput;
+    private EditText guidianIntervalInput, guidianCooldownInput, guidianDailyMaxInput, guidianQuietStartInput, guidianQuietEndInput, guidianPromptInput, guidianReasonInput;
     private boolean serviceRunning = false;
     private String currentTab = "life";
     private boolean weatherFetching = false;
@@ -149,7 +149,6 @@ public class MainActivity extends Activity {
         if (refreshLifeButton != null) refreshLifeButton.setOnClickListener(v -> { saveSettings(); updateUI(); Toast.makeText(this, "已刷新生活总览", Toast.LENGTH_SHORT).show(); });
         if (testButton != null) testButton.setOnClickListener(v -> testScreenshot());
         if (openXhsButton != null) openXhsButton.setOnClickListener(v -> openPackage(AppPrefs.packageForApp(this, "小红书")));
-        if (openTargetAppButton != null) openTargetAppButton.setOnClickListener(v -> openPackage(AppPrefs.homeTargetPackage(this)));
         if (homeButton != null) homeButton.setOnClickListener(v -> { ScreenshotService svc = ScreenshotService.getInstance(); toast(svc != null && svc.doHome()); });
         if (backButton != null) backButton.setOnClickListener(v -> { ScreenshotService svc = ScreenshotService.getInstance(); toast(svc != null && svc.doBack()); });
         if (recentsButton != null) recentsButton.setOnClickListener(v -> { ScreenshotService svc = ScreenshotService.getInstance(); toast(svc != null && svc.doRecents()); });
@@ -157,7 +156,6 @@ public class MainActivity extends Activity {
         if (notifyTestButton != null) notifyTestButton.setOnClickListener(v -> testNotification());
         if (addPackageButton != null) addPackageButton.setOnClickListener(v -> addPackageAlias());
         if (testPackageButton != null) testPackageButton.setOnClickListener(v -> testCustomPackage());
-        if (sequenceTestButton != null) sequenceTestButton.setOnClickListener(v -> testLocalSequence());
         if (addWeatherLocationButton != null) addWeatherLocationButton.setOnClickListener(v -> addWeatherLocation(false));
         if (setCurrentWeatherButton != null) setCurrentWeatherButton.setOnClickListener(v -> addWeatherLocation(true));
         if (checkUpdateButton != null) checkUpdateButton.setOnClickListener(v -> checkForUpdates(true));
@@ -212,8 +210,8 @@ public class MainActivity extends Activity {
         heroLabelText = findViewById(R.id.heroLabelText); overviewAdviceText = findViewById(R.id.overviewAdviceText); overviewSecondaryText = findViewById(R.id.overviewSecondaryText); overviewMetaText = findViewById(R.id.overviewMetaText); overviewBatteryText = findViewById(R.id.overviewBatteryText); overviewBatteryDetail = findViewById(R.id.overviewBatteryDetail); overviewAppText = findViewById(R.id.overviewAppText); overviewAppDetail = findViewById(R.id.overviewAppDetail); overviewScreenText = findViewById(R.id.overviewScreenText); overviewScreenDetail = findViewById(R.id.overviewScreenDetail); overviewWeatherText = findViewById(R.id.overviewWeatherText); overviewWeatherDetail = findViewById(R.id.overviewWeatherDetail); weatherLocationsText = findViewById(R.id.weatherLocationsText); themeText = findViewById(R.id.themeText); calendarSummaryText = findViewById(R.id.calendarSummaryText); calendarDetailText = findViewById(R.id.calendarDetailText);
         overviewBatteryLabel = findViewById(R.id.overviewBatteryLabel); overviewAppLabel = findViewById(R.id.overviewAppLabel); overviewScreenLabel = findViewById(R.id.overviewScreenLabel); overviewWeatherLabel = findViewById(R.id.overviewWeatherLabel); quickSeeTitle = findViewById(R.id.quickSeeTitle); quickSeeDetail = findViewById(R.id.quickSeeDetail); quickSeeArrow = findViewById(R.id.quickSeeArrow); quickGuardTitle = findViewById(R.id.quickGuardTitle); quickGuardDetail = findViewById(R.id.quickGuardDetail); quickGuardArrow = findViewById(R.id.quickGuardArrow); quickSeeIcon = findViewById(R.id.quickSeeIcon); quickGuardIcon = findViewById(R.id.quickGuardIcon);
         guidianSummaryText = findViewById(R.id.guidianSummaryText); guidianDetailText = findViewById(R.id.guidianDetailText); guidianSettingsStatusText = findViewById(R.id.guidianSettingsStatusText); guidianAvatarText = findViewById(R.id.guidianAvatarText); versionStatusText = findViewById(R.id.versionStatusText); updateChangelogText = findViewById(R.id.updateChangelogText); licenseSummaryText = findViewById(R.id.licenseSummaryText);
-        toggleButton = findViewById(R.id.toggleButton); accessibilityButton = findViewById(R.id.accessibilityButton); usageAccessButton = findViewById(R.id.usageAccessButton); testButton = findViewById(R.id.testButton); openXhsButton = findViewById(R.id.openXhsButton); openTargetAppButton = findViewById(R.id.openTargetAppButton); homeButton = findViewById(R.id.homeButton); backButton = findViewById(R.id.backButton); recentsButton = findViewById(R.id.recentsButton); alarmTestButton = findViewById(R.id.alarmTestButton); notifyTestButton = findViewById(R.id.notifyTestButton); refreshLifeButton = findViewById(R.id.refreshLifeButton);
-        addPackageButton = findViewById(R.id.addPackageButton); testPackageButton = findViewById(R.id.testPackageButton); sequenceTestButton = findViewById(R.id.sequenceTestButton); addWeatherLocationButton = findViewById(R.id.addWeatherLocationButton); setCurrentWeatherButton = findViewById(R.id.setCurrentWeatherButton);
+        toggleButton = findViewById(R.id.toggleButton); accessibilityButton = findViewById(R.id.accessibilityButton); usageAccessButton = findViewById(R.id.usageAccessButton); testButton = findViewById(R.id.testButton); openXhsButton = findViewById(R.id.openXhsButton); homeButton = findViewById(R.id.homeButton); backButton = findViewById(R.id.backButton); recentsButton = findViewById(R.id.recentsButton); alarmTestButton = findViewById(R.id.alarmTestButton); notifyTestButton = findViewById(R.id.notifyTestButton); refreshLifeButton = findViewById(R.id.refreshLifeButton);
+        addPackageButton = findViewById(R.id.addPackageButton); testPackageButton = findViewById(R.id.testPackageButton); addWeatherLocationButton = findViewById(R.id.addWeatherLocationButton); setCurrentWeatherButton = findViewById(R.id.setCurrentWeatherButton);
         testGuidianButton = findViewById(R.id.testGuidianButton); saveGuidianSettingsButton = findViewById(R.id.saveGuidianSettingsButton); chooseGuidianAvatarButton = findViewById(R.id.chooseGuidianAvatarButton); guidianThemeDuskButton = findViewById(R.id.guidianThemeDuskButton); guidianThemeCloudButton = findViewById(R.id.guidianThemeCloudButton); guidianThemeBerryButton = findViewById(R.id.guidianThemeBerryButton);
         themeCreamButton = findViewById(R.id.themeCreamButton); themeBlueButton = findViewById(R.id.themeBlueButton); themePeachButton = findViewById(R.id.themePeachButton); themeNightButton = findViewById(R.id.themeNightButton); themeMintButton = findViewById(R.id.themeMintButton); themePurpleButton = findViewById(R.id.themePurpleButton); drawerThemeButton = findViewById(R.id.drawerThemeButton); drawerNowStateButton = findViewById(R.id.drawerNowStateButton); locationPermissionButton = findViewById(R.id.locationPermissionButton); notificationListenerButton = findViewById(R.id.notificationListenerButton);
         drawerConnectionButton = findViewById(R.id.drawerConnectionButton); drawerPermissionButton = findViewById(R.id.drawerPermissionButton); drawerControlTestButton = findViewById(R.id.drawerControlTestButton); drawerKnownAppsButton = findViewById(R.id.drawerKnownAppsButton); drawerHomeModeButton = findViewById(R.id.drawerHomeModeButton); drawerReminderButton = findViewById(R.id.drawerReminderButton); drawerCycleButton = findViewById(R.id.drawerCycleButton); drawerDebugButton = findViewById(R.id.drawerDebugButton); drawerLifeDetailsButton = findViewById(R.id.drawerLifeDetailsButton); drawerWeatherButton = findViewById(R.id.drawerWeatherButton); drawerVersionButton = findViewById(R.id.drawerVersionButton); checkUpdateButton = findViewById(R.id.checkUpdateButton); downloadUpdateButton = findViewById(R.id.downloadUpdateButton);
@@ -229,8 +227,8 @@ public class MainActivity extends Activity {
         weatherAliasInput = findViewById(R.id.weatherAliasInput); weatherCityInput = findViewById(R.id.weatherCityInput); weatherNoteInput = findViewById(R.id.weatherNoteInput); calendarTitleInput = findViewById(R.id.calendarTitleInput); calendarDateInput = findViewById(R.id.calendarDateInput); calendarGroupInput = findViewById(R.id.calendarGroupInput); calendarNoteInput = findViewById(R.id.calendarNoteInput);
         batteryThresholdInput = findViewById(R.id.batteryThresholdInput); screenThresholdInput = findViewById(R.id.screenThresholdInput); waterIntervalInput = findViewById(R.id.waterIntervalInput); restIntervalInput = findViewById(R.id.restIntervalInput);
         lastPeriodStartInput = findViewById(R.id.lastPeriodStartInput); cycleLengthInput = findViewById(R.id.cycleLengthInput); periodLengthInput = findViewById(R.id.periodLengthInput); cycleRemindBeforeInput = findViewById(R.id.cycleRemindBeforeInput);
-        appAliasInput = findViewById(R.id.appAliasInput); appPackageInput = findViewById(R.id.appPackageInput); targetAppsInput = findViewById(R.id.targetAppsInput); homeThresholdInput = findViewById(R.id.homeThresholdInput); homeCooldownInput = findViewById(R.id.homeCooldownInput); homeTargetInput = findViewById(R.id.homeTargetInput);
-        guidianIntervalInput = findViewById(R.id.guidianIntervalInput); guidianCooldownInput = findViewById(R.id.guidianCooldownInput); guidianDailyMaxInput = findViewById(R.id.guidianDailyMaxInput); guidianQuietStartInput = findViewById(R.id.guidianQuietStartInput); guidianQuietEndInput = findViewById(R.id.guidianQuietEndInput); guidianTargetPackageInput = findViewById(R.id.guidianTargetPackageInput); guidianPromptInput = findViewById(R.id.guidianPromptInput); guidianReasonInput = findViewById(R.id.guidianReasonInput);
+        appAliasInput = findViewById(R.id.appAliasInput); appPackageInput = findViewById(R.id.appPackageInput); targetAppsInput = findViewById(R.id.targetAppsInput); homeThresholdInput = findViewById(R.id.homeThresholdInput); homeCooldownInput = findViewById(R.id.homeCooldownInput);
+        guidianIntervalInput = findViewById(R.id.guidianIntervalInput); guidianCooldownInput = findViewById(R.id.guidianCooldownInput); guidianDailyMaxInput = findViewById(R.id.guidianDailyMaxInput); guidianQuietStartInput = findViewById(R.id.guidianQuietStartInput); guidianQuietEndInput = findViewById(R.id.guidianQuietEndInput); guidianPromptInput = findViewById(R.id.guidianPromptInput); guidianReasonInput = findViewById(R.id.guidianReasonInput);
     }
 
     private void buildMagazinePages() {
@@ -1112,7 +1110,7 @@ public class MainActivity extends Activity {
         root.addView(guardSettingBlock("周期提醒", AppPrefs.userName(this) + "的周期与关怀", R.drawable.ic_heart_wave, drawerCycle), marginBottom(11));
 
         root.addView(label("回家与设备", 9), marginBottom(6));
-        root.addView(guardSettingBlock("回家模式", "回来时打开熟悉的窗", R.drawable.ic_home, drawerHomeMode), marginBottom(10));
+        root.addView(guardSettingBlock("回家模式", "使用时长达到阈值后只发提醒", R.drawable.ic_home, drawerHomeMode), marginBottom(10));
 
         LinearLayout ending = editorialCard();
         ending.setOrientation(LinearLayout.HORIZONTAL);
@@ -1714,7 +1712,6 @@ public class MainActivity extends Activity {
         if (targetAppsInput != null) targetAppsInput.setText(AppPrefs.targetAppsText(this));
         if (homeThresholdInput != null) homeThresholdInput.setText(String.valueOf(prefs.getInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, 10)));
         if (homeCooldownInput != null) homeCooldownInput.setText(String.valueOf(prefs.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5)));
-        if (homeTargetInput != null) homeTargetInput.setText(AppPrefs.homeTargetPackage(this));
         if (guidianEnabled != null) guidianEnabled.setChecked(prefs.getBoolean(GuidianState.KEY_ENABLED, true));
         if (guidianRemoteEnabled != null) guidianRemoteEnabled.setChecked(prefs.getBoolean(GuidianState.KEY_ALLOW_REMOTE, true));
         if (guidianFullscreenEnabled != null) guidianFullscreenEnabled.setChecked(prefs.getBoolean(GuidianState.KEY_FULLSCREEN, true));
@@ -1724,7 +1721,6 @@ public class MainActivity extends Activity {
         if (guidianDailyMaxInput != null) guidianDailyMaxInput.setText(String.valueOf(prefs.getInt(GuidianState.KEY_DAILY_MAX, 3)));
         if (guidianQuietStartInput != null) guidianQuietStartInput.setText(prefs.getString(GuidianState.KEY_QUIET_START, "23:30"));
         if (guidianQuietEndInput != null) guidianQuietEndInput.setText(prefs.getString(GuidianState.KEY_QUIET_END, "08:00"));
-        if (guidianTargetPackageInput != null) guidianTargetPackageInput.setText(prefs.getString(GuidianState.KEY_TARGET_PACKAGE, AppPrefs.homeTargetPackage(this)));
         if (guidianPromptInput != null) guidianPromptInput.setText(prefs.getString(GuidianState.KEY_PROMPTS, GuidianState.defaultPrompts(this)));
         if (guidianReasonInput != null) guidianReasonInput.setText(prefs.getString(GuidianState.KEY_REASONS, GuidianState.defaultReasons()));
     }
@@ -1752,7 +1748,6 @@ public class MainActivity extends Activity {
         if (targetAppsInput != null) { targetAppsInput.addTextChangedListener(watcher); targetAppsInput.setOnFocusChangeListener(saveOnBlur); }
         if (homeThresholdInput != null) { homeThresholdInput.addTextChangedListener(watcher); homeThresholdInput.setOnFocusChangeListener(saveOnBlur); }
         if (homeCooldownInput != null) { homeCooldownInput.addTextChangedListener(watcher); homeCooldownInput.setOnFocusChangeListener(saveOnBlur); }
-        if (homeTargetInput != null) { homeTargetInput.addTextChangedListener(watcher); homeTargetInput.setOnFocusChangeListener(saveOnBlur); }
         if (homeModeEnabled != null) homeModeEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> saveHomeModeSettingsOnly(true));
     }
 
@@ -1763,22 +1758,18 @@ public class MainActivity extends Activity {
         String watchPackages = collectPackagesFromTargets(normalizedTargets);
         int threshold = homeThresholdInput == null ? prefs.getInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, 10) : parseInt(homeThresholdInput.getText().toString().trim(), 10, 1, 240);
         int cooldown = homeCooldownInput == null ? prefs.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5) : parseInt(homeCooldownInput.getText().toString().trim(), 5, 1, 240);
-        String homeTarget = homeTargetInput == null ? prefs.getString(AppPrefs.KEY_HOME_TARGET_PACKAGE, "") : AppPrefs.saveHomeTarget(this, homeTargetInput.getText().toString().trim());
-
         boolean changed = prefs.getBoolean(AppPrefs.KEY_HOME_MODE_ENABLED, false) != enabled
                 || !prefs.getString(AppPrefs.KEY_TARGET_APPS, "").equals(normalizedTargets)
                 || !prefs.getString(AppPrefs.KEY_HOME_WATCH_PACKAGES, "").equals(watchPackages)
                 || prefs.getInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, 10) != threshold
-                || prefs.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5) != cooldown
-                || !prefs.getString(AppPrefs.KEY_HOME_TARGET_PACKAGE, "").equals(homeTarget);
+                || prefs.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5) != cooldown;
 
         SharedPreferences.Editor e = prefs.edit()
                 .putBoolean(AppPrefs.KEY_HOME_MODE_ENABLED, enabled)
                 .putString(AppPrefs.KEY_TARGET_APPS, normalizedTargets)
                 .putString(AppPrefs.KEY_HOME_WATCH_PACKAGES, watchPackages)
                 .putInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, threshold)
-                .putInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, cooldown)
-                .putString(AppPrefs.KEY_HOME_TARGET_PACKAGE, homeTarget);
+                .putInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, cooldown);
         if (blocking) e.commit(); else e.apply();
         if (changed) HomeMode.resetTracking(this);
         if (homeModeStatusText != null) homeModeStatusText.setText(HomeMode.pretty(this));
@@ -1843,7 +1834,6 @@ public class MainActivity extends Activity {
         }
         if (homeThresholdInput != null) e.putInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, parseInt(homeThresholdInput.getText().toString().trim(), 10, 1, 240));
         if (homeCooldownInput != null) e.putInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, parseInt(homeCooldownInput.getText().toString().trim(), 5, 1, 240));
-        if (homeTargetInput != null) e.putString(AppPrefs.KEY_HOME_TARGET_PACKAGE, AppPrefs.saveHomeTarget(this, homeTargetInput.getText().toString().trim()));
         if (guidianEnabled != null) e.putBoolean(GuidianState.KEY_ENABLED, guidianEnabled.isChecked());
         if (guidianRemoteEnabled != null) e.putBoolean(GuidianState.KEY_ALLOW_REMOTE, guidianRemoteEnabled.isChecked());
         if (guidianFullscreenEnabled != null) e.putBoolean(GuidianState.KEY_FULLSCREEN, guidianFullscreenEnabled.isChecked());
@@ -1853,7 +1843,6 @@ public class MainActivity extends Activity {
         if (guidianDailyMaxInput != null) e.putInt(GuidianState.KEY_DAILY_MAX, parseInt(guidianDailyMaxInput.getText().toString().trim(), 3, 0, 99));
         if (guidianQuietStartInput != null) e.putString(GuidianState.KEY_QUIET_START, guidianQuietStartInput.getText().toString().trim().isEmpty() ? "23:30" : guidianQuietStartInput.getText().toString().trim());
         if (guidianQuietEndInput != null) e.putString(GuidianState.KEY_QUIET_END, guidianQuietEndInput.getText().toString().trim().isEmpty() ? "08:00" : guidianQuietEndInput.getText().toString().trim());
-        if (guidianTargetPackageInput != null) e.putString(GuidianState.KEY_TARGET_PACKAGE, AppPrefs.saveHomeTarget(this, guidianTargetPackageInput.getText().toString().trim()));
         if (guidianPromptInput != null) e.putString(GuidianState.KEY_PROMPTS, guidianPromptInput.getText().toString());
         if (guidianReasonInput != null) e.putString(GuidianState.KEY_REASONS, guidianReasonInput.getText().toString());
         e.apply();
@@ -2425,7 +2414,6 @@ public class MainActivity extends Activity {
     private void testNotification() { saveSettings(); boolean ok = CompanionService.showReminderNotification(this, "掌心窗悬浮横幅测试", AppPrefs.userName(this) + "看到了顶部横幅，就说明通知通道正常。"); DebugState.append(this, ok ? "已发送悬浮横幅测试提醒" : "悬浮横幅/通知失败：请允许掌心窗发送通知"); Toast.makeText(this, ok ? "已发送横幅测试" : "请先允许通知权限", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void addPackageAlias() { String alias = appAliasInput == null ? "" : appAliasInput.getText().toString().trim(); String pkg = appPackageInput == null ? "" : appPackageInput.getText().toString().trim(); if (alias.isEmpty()) { Toast.makeText(this, "先填应用名/昵称", Toast.LENGTH_SHORT).show(); return; } if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "包名格式不对，例如 com.xingin.xhs", Toast.LENGTH_LONG).show(); return; } AppPrefs.saveCustomApp(this, alias, pkg); DebugState.append(this, "已保存可打开应用：" + alias + " → " + pkg); Toast.makeText(this, "已添加包名", Toast.LENGTH_SHORT).show(); updateUI(); }
     private void testCustomPackage() { String pkg = appPackageInput == null ? "" : appPackageInput.getText().toString().trim(); if (!AppPrefs.isPackageLike(pkg)) { Toast.makeText(this, "先填正确包名", Toast.LENGTH_SHORT).show(); return; } openPackage(pkg); }
-    private void testLocalSequence() { boolean ok1 = CompanionService.showReminderNotification(this, "掌心窗连招测试", "先发悬浮横幅，再回目标 APP。日志会写清每一步。"); String result = CompanionService.openPackageResult(this, AppPrefs.homeTargetPackage(this)); DebugState.append(this, "本机连招测试：popup=" + ok1 + "；open=" + result); updateUI(); }
     private boolean openPackage(String pkg) { String result = CompanionService.openPackageResult(this, pkg); boolean ok = result.startsWith("opened_"); DebugState.append(this, "本机打开 App：" + result); Toast.makeText(this, ok ? "已尝试打开" : ("打开失败：" + result), Toast.LENGTH_SHORT).show(); updateUI(); return ok; }
     private void updateVersionUi() {
         boolean hasNew = latestVersionCode > AppPrefs.APP_VERSION_CODE;

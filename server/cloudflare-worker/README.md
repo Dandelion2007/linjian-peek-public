@@ -54,7 +54,7 @@ npx wrangler deploy --config wrangler.toml
 - 新增屏幕节点与精准控制：`get_screen_nodes`、`tap_text`、`input_text`。
 - 新增小红书评论草稿/发送辅助：`draft_xhs_comment`、`xhs_comment`、`send_visible_comment_after_confirmation`。
 - 新增主动关心与到访记录：`get_care_policy`、`set_care_policy`、`active_care_check`、`care_action`、`record_visit`、`get_visit_stats` 等，状态保存在 D1 的 `companion_state` 中。
-- 新增连招/预设：`run_sequence`、`run_preset`、`save_known_app`。
+- 保留通用组合动作与应用别名：`run_sequence`、`save_known_app`；旧回家/睡前强制切换预设已移除。
 - 新增轻量天气/感官读取：只读取手机最近上报状态，不在 Cloudflare 里生成声息/聆音/鲸鸣。
 
 重新部署仍然只需要在 `cloudflare-worker` 目录执行：

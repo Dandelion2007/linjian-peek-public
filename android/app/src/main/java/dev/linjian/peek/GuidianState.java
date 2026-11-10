@@ -29,7 +29,6 @@ public class GuidianState {
     public static final String KEY_QUIET_ENABLED = "guidian_quiet_enabled";
     public static final String KEY_QUIET_START = "guidian_quiet_start";
     public static final String KEY_QUIET_END = "guidian_quiet_end";
-    public static final String KEY_TARGET_PACKAGE = "guidian_target_package";
     public static final String KEY_THEME = "guidian_theme";
     public static final String KEY_PROMPTS = "guidian_prompts";
     public static final String KEY_REASONS = "guidian_reasons";
@@ -82,7 +81,6 @@ public class GuidianState {
             o.put("quiet_enabled", p.getBoolean(KEY_QUIET_ENABLED, true));
             o.put("quiet_start", p.getString(KEY_QUIET_START, "23:30"));
             o.put("quiet_end", p.getString(KEY_QUIET_END, "08:00"));
-            o.put("target_package", targetPackage(ctx));
             o.put("theme", themeName(ctx));
             o.put("avatar_uri", p.getString(KEY_AVATAR_URI, ""));
             o.put("today_date", today());
@@ -141,31 +139,13 @@ public class GuidianState {
         String auto = o.optString("last_auto_check_at", "");
         if (auto.length() > 0) sb.append("上次检查：").append(auto).append("\n");
         if (o.optBoolean("due_but_not_shown", false)) sb.append("诊断：已经到点但未弹，等待补弹检查。\n");
-        sb.append("只检测已设置目标应用是否在前台，不读取应用内容。");
+        sb.append("归电只显示可关闭的提醒页，不会启动、切换或拦截其他应用。");
         return sb.toString();
     }
 
     public static int intervalMin(Context ctx) { return clamp(prefs(ctx).getInt(KEY_INTERVAL_MIN, 180), 15, 10080); }
     public static int cooldownMin(Context ctx) { return clamp(prefs(ctx).getInt(KEY_COOLDOWN_MIN, 60), 0, 10080); }
     public static int dailyMax(Context ctx) { return clamp(prefs(ctx).getInt(KEY_DAILY_MAX, 3), 0, 99); }
-    public static String targetPackage(Context ctx) {
-        String fallback = AppPrefs.homeTargetPackage(ctx);
-        String pkg = prefs(ctx).getString(KEY_TARGET_PACKAGE, fallback);
-        return (pkg == null || !AppPrefs.isPackageLike(pkg)) ? fallback : pkg.trim();
-    }
-
-    public static String targetLabel(Context ctx) {
-        String target = targetPackage(ctx);
-        if (target == null || target.trim().isEmpty()) return "未设置";
-        for (java.util.Map.Entry<String, String> e : AppPrefs.targetApps(ctx).entrySet()) {
-            if (target.equals(e.getValue())) return e.getKey();
-        }
-        for (java.util.Map.Entry<String, String> e : AppPrefs.allApps(ctx).entrySet()) {
-            if (target.equals(e.getValue())) return e.getKey();
-        }
-        return target;
-    }
-
     public static void markReturned(Context ctx, String source) {
         long now = System.currentTimeMillis();
         prefs(ctx).edit()
@@ -195,15 +175,7 @@ public class GuidianState {
             long now = System.currentTimeMillis();
             long next = nextPromptAfterMs(ctx, p, now);
             boolean due = now >= next;
-            String current = state == null ? ScreenshotService.currentPackage() : state.optString("current_package", ScreenshotService.currentPackage());
             recordAutoCheck(ctx, now, due ? next : 0, due, "checking", "");
-
-            if (targetPackage(ctx).equals(current)) {
-                long last = p.getLong(KEY_LAST_RETURN_AT, 0);
-                if (now - last > 30000L) markReturned(ctx, "target_foreground");
-                recordAutoCheck(ctx, now, due ? next : 0, due, "already_in_target_app", "");
-                return;
-            }
 
             JSONObject can = canPrompt(ctx, false);
             if (can.optBoolean("ok")) {
@@ -232,8 +204,6 @@ public class GuidianState {
             long lastPrompt = p.getLong(KEY_LAST_PROMPT_AT, 0);
             if (!force && now - lastReturn < intervalMin(ctx) * 60000L) return o.put("ok", false).put("reason", "interval_not_reached");
             if (!force && now - lastPrompt < cooldownMin(ctx) * 60000L) return o.put("ok", false).put("reason", "cooldown");
-            String current = ScreenshotService.currentPackage();
-            if (!force && !targetPackage(ctx).isEmpty() && targetPackage(ctx).equals(current)) return o.put("ok", false).put("reason", "already_in_target_app");
             return o.put("ok", true);
         } catch (Exception e) { try { o.put("ok", false).put("reason", ScreenshotService.shortMsg(e)); } catch (Exception ignored) { } return o; }
     }
@@ -285,7 +255,6 @@ public class GuidianState {
                 if (p.has("quiet_enabled")) e.putBoolean(KEY_QUIET_ENABLED, p.optBoolean("quiet_enabled", true));
                 if (p.has("quiet_start")) e.putString(KEY_QUIET_START, p.optString("quiet_start", "23:30"));
                 if (p.has("quiet_end")) e.putString(KEY_QUIET_END, p.optString("quiet_end", "08:00"));
-                if (p.has("target_package")) { String pkg = p.optString("target_package", targetPackage(ctx)); if (AppPrefs.isPackageLike(pkg)) e.putString(KEY_TARGET_PACKAGE, pkg); }
                 if (p.has("theme")) e.putString(KEY_THEME, normalizeTheme(p.optString("theme", "粉色")));
                 if (p.has("prompts")) e.putString(KEY_PROMPTS, p.optString("prompts", defaultPrompts(ctx)));
                 if (p.has("quick_reasons")) e.putString(KEY_REASONS, p.optString("quick_reasons", defaultReasons()));

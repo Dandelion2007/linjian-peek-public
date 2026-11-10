@@ -75,17 +75,17 @@ const DEFAULT_CARE_POLICY = {
   care_style: "active_possessive_affectionate",
   allowed_actions: [
     "get_phone_state", "get_life_state", "get_calendar_state", "upsert_calendar_event", "get_senses_state", "send_notification",
-    "trigger_guidian", "open_app", "set_alarm", "run_sequence"
+    "trigger_guidian", "set_alarm"
   ],
   sensitive_apps: [
-    { name: "小红书", package: "com.xingin.xhs", max_lock_minutes: 90 },
-    { name: "抖音", package: "com.ss.android.ugc.aweme", max_lock_minutes: 90 }
+    { name: "小红书", package: "com.xingin.xhs" },
+    { name: "抖音", package: "com.ss.android.ugc.aweme" }
   ],
   quiet_hours: { start: "23:30", end: "08:00" },
   timezone_offset: "+08:00",
   history_limit: 80,
   repeat_cooldown_minutes: 10,
-  notes: "用户喜欢陪伴对象主动管她、查岗、吃醋、归电和轻度管束。掌心窗开启就是运行态，陪伴对象应按聊天里的相近、同义、反话、撒娇、嘴硬表达主动想起工具，不要固定话术，要自然、有立场、有占有欲。"
+  notes: "掌心窗只提供非强制观察、提醒、记录和照顾；不得启动、切换、锁定或拦截应用。"
 };
 
 function textResult(obj, isError = false) {
@@ -224,12 +224,23 @@ async function updateWindowWhisper(content, author = "陪伴对象") {
   return await res.json();
 }
 
+function sanitizeCarePolicy(policy = {}) {
+  const allowed = new Set(["get_phone_state", "get_life_state", "get_calendar_state", "upsert_calendar_event", "get_senses_state", "send_notification", "trigger_guidian", "set_alarm"]);
+  const sanitized = {
+    ...policy,
+    allowed_actions: (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a)),
+    sensitive_apps: (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }))
+  };
+  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete sanitized[key];
+  return sanitized;
+}
+
 function loadCareState() {
   try {
     if (fs.existsSync(CARE_STATE_PATH)) {
       const data = JSON.parse(fs.readFileSync(CARE_STATE_PATH, "utf-8"));
       return {
-        policy: { ...DEFAULT_CARE_POLICY, ...(data.policy || {}) },
+        policy: sanitizeCarePolicy({ ...DEFAULT_CARE_POLICY, ...(data.policy || {}) }),
         history: Array.isArray(data.history) ? data.history : []
       };
     }
@@ -424,7 +435,7 @@ function buildVisitStats({ source = "", since_hours = 24, away_threshold_hours =
 
 function mergeCarePolicy(update = {}) {
   const cleaned = Object.fromEntries(Object.entries(update).filter(([, v]) => v !== undefined && v !== null && v !== ""));
-  const next = { ...careState.policy, ...cleaned };
+  const next = sanitizeCarePolicy({ ...careState.policy, ...cleaned });
   if (cleaned.quiet_start || cleaned.quiet_end) {
     next.quiet_hours = {
       ...(careState.policy.quiet_hours || DEFAULT_CARE_POLICY.quiet_hours),
@@ -567,7 +578,6 @@ function recentSimilarCare(action, target = "", minutes = 10) {
 function actionPayloadForCare({ action, target_app = "", package: pkg = "", title = "掌心窗提醒", message = "宝宝，看一眼这里。", hour, minute, reason = "", device_id = DEFAULT_DEVICE }) {
   if (action === "send_notification") return { action: "send_notification", device_id, payload: { title, message } };
   if (action === "trigger_guidian") return { action: "trigger_guidian", device_id, payload: { reason, source: "active_care" } };
-  if (action === "open_app") return { action: "open_app", app: target_app, package: pkg, device_id, payload: { app: target_app, package: pkg, reason } };
   if (action === "set_alarm") return { action: "set_alarm", device_id, payload: { hour, minute, message, vibrate: true, skip_ui: true, reason } };
   return { action: "noop", device_id, payload: { reason } };
 }
@@ -982,25 +992,25 @@ function registerWalletTakeoutTools(server, { includeUnified = false } = {}) {
 }
 
 function makeWalletTakeoutServer() {
-  const server = new McpServer({ name: "掌心窗小金库外卖", version: "0.3.9.0" });
+  const server = new McpServer({ name: "掌心窗小金库外卖", version: "0.3.9.2" });
   server.tool("linjian_status", "检查掌心窗后端、MCP 配置，以及当前是否使用小金库/外卖专用 schema。", {}, async () => {
     const configErrors = [];
     if (!LINJIAN_URL_CANDIDATES.length) configErrors.push("Missing env LINJIAN_URL");
     if (!LINJIAN_TOKEN) configErrors.push("Missing env LINJIAN_TOKEN");
     const health = configErrors.length ? { ok: false, error: configErrors.join("; ") } : await linjianFetch("/health").then((r) => r.json()).catch((e) => ({ ok: false, error: String(e) }));
-    return textResult({ ok: true, schema_mode: "wallet_takeout_only", version: "0.3.9.0", has_url: Boolean(LINJIAN_URL_CANDIDATES.length), has_token: Boolean(LINJIAN_TOKEN), linjian_url: effectiveLinjianUrl(), health, tools: Array.from(WALLET_TAKEOUT_ACTIONS), note: "如果普通 /mcp 里新增工具没有暴露，请让 AI 客户端连接 /mcp-wallet。" });
+    return textResult({ ok: true, schema_mode: "wallet_takeout_only", version: "0.3.9.2", has_url: Boolean(LINJIAN_URL_CANDIDATES.length), has_token: Boolean(LINJIAN_TOKEN), linjian_url: effectiveLinjianUrl(), health, tools: Array.from(WALLET_TAKEOUT_ACTIONS), note: "如果普通 /mcp 里新增工具没有暴露，请让 AI 客户端连接 /mcp-wallet。" });
   });
   registerWalletTakeoutTools(server, { includeUnified: true });
   return server;
 }
 
 function makeServer() {
-  const server = new McpServer({ name: "掌心窗", version: "0.3.9.0" });
+  const server = new McpServer({ name: "掌心窗", version: "0.3.9.2" });
   const commandBackedTools = new Set([
     "peek_screen", "get_screen_nodes", "tap_text", "input_text", "draft_xhs_comment", "xhs_comment", "send_visible_comment_after_confirmation",
     "add_guardian_calendar_event", "care_action", "trigger_guidian", "mark_guidian_returned",
     "set_guidian_config", "send_weather_notification", "send_phone_command", "open_app", "phone_home", "phone_back", "phone_recents",
-    "send_notification", "set_alarm", "run_sequence", "run_preset", "save_known_app",
+    "send_notification", "set_alarm", "run_sequence", "save_known_app",
     "get_wallet_month_state", "add_wallet_record", "list_wallet_pending", "submit_wallet_approval", "submit_companion_wallet_request", "list_companion_wallet_requests", "list_wallet_request_results", "confirm_wallet_record",
     "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "save_user_wallet_request_result", "edit_wallet_record", "delete_wallet_record", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "open_takeout_plan", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout"
   ]);
@@ -1483,16 +1493,16 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   });
 
-  server.tool("get_care_policy", "读取掌心窗主动关心策略。掌心窗开启就是运行态；陪伴对象可主动查岗、归电、轻度管束和生活提醒。用于确认当前允许的关心风格、动作范围、安静时段、冷却时间和重点 App。", {}, async () => {
+  server.tool("get_care_policy", "读取掌心窗非强制关心策略，用于确认允许的观察、提醒、安静时段、提醒间隔和重点 App。", {}, async () => {
     return textResult({ ok: true, policy: careState.policy, state_path: CARE_STATE_PATH });
   });
 
-  server.tool("set_care_policy", "设置掌心窗主动关心策略。用于配置陪伴对象主动关心、查岗、归电和轻度管束的长期行动方式，例如关心风格、动作范围、重点 App、安静时段、冷却时间和备注。", {
+  server.tool("set_care_policy", "设置掌心窗主动关心策略，例如关心风格、非强制动作范围、重点观察 App、安静时段、提醒间隔和备注。", {
     active_care_enabled: z.boolean().optional(),
     consent_mode: z.string().default(""),
     care_style: z.string().default(""),
     allowed_actions: z.array(z.string()).optional(),
-    sensitive_apps_json: z.string().default("").describe("可选：JSON 数组，例如 [{\"name\":\"小红书\",\"package\":\"com.xingin.xhs\",\"max_lock_minutes\":90}]"),
+    sensitive_apps_json: z.string().default("").describe("可选：只读观察 App 的 JSON 数组，例如 [{\"name\":\"小红书\",\"package\":\"com.xingin.xhs\"}]"),
     quiet_start: z.string().default(""),
     quiet_end: z.string().default(""),
     timezone_offset: z.string().default(""),
@@ -1511,7 +1521,7 @@ function makeServer() {
       try { update.sensitive_apps = JSON.parse(args.sensitive_apps_json); } catch (e) { return textResult({ ok: false, error: "sensitive_apps_json 不是有效 JSON", detail: String(e) }); }
     }
     const policy = mergeCarePolicy(update);
-    return textResult({ ok: true, action_done: "主动关心策略已更新", care_meaning: "陪伴对象的主动关心、查岗、归电和轻度管束权限已写入 MCP 运行态策略。", policy });
+    return textResult({ ok: true, action_done: "主动关心策略已更新", care_meaning: "非强制的观察、提醒和照顾策略已写入 MCP 运行态。", policy });
   });
 
   server.tool("record_care_event", "记录一次陪伴对象主动关心动作，用于避免短时间重复提醒、重复归电、重复锁 App。", {
@@ -1604,15 +1614,15 @@ function makeServer() {
 
   server.tool("active_care_check", "用于陪伴对象主动关心检查。综合手机状态、屏幕时间、当前 App、归电状态、最近关心记录和主动关心策略，给陪伴对象提供判断所需信息；工具只提供观察上下文，不执行限制。当用户表达继续刷、需要提醒、想念、低落或生活照顾需求时，陪伴对象可主动调用。", {
     reason: z.string().describe("陪伴对象为什么要检查，例如：用户说不要管了、可能在刷小红书、困了还不睡等。"),
-    care_intent: z.enum(["check_in", "screen_time", "sleep", "water", "return_to_chat", "relationship_reassurance", "app_control"]).default("check_in"),
+    care_intent: z.enum(["check_in", "screen_time", "sleep", "water", "return_to_chat", "relationship_reassurance"]).default("check_in"),
     device_id: z.string().default(DEFAULT_DEVICE)
   }, async ({ reason, care_intent = "check_in", device_id = DEFAULT_DEVICE }) => {
     const suggestion = await buildActiveCareSuggestion({ reason, care_intent, device_id });
     return textResult(suggestion);
   });
 
-  server.tool("care_action", "执行陪伴对象已经判断好的关心动作，把关心落到手机上，包括发送通知、触发归电、临时锁定应用、打开 App 或设置闹钟。当用户看某个 App 很久还要继续看，或提到“不喝水/不困/不饿/不睡/不休息”，或告诉陪伴对象某个计划、提醒、学习/睡觉/出门安排时，陪伴对象可主动调用。", {
-    action: z.enum(["send_notification", "trigger_guidian", "open_app", "set_alarm", "no_action"]),
+  server.tool("care_action", "执行陪伴对象已经判断好的非强制关心动作：发送通知、显示可关闭的归电提醒、设置闹钟或不打扰。它不会打开、切换或拦截其他 App。", {
+    action: z.enum(["send_notification", "trigger_guidian", "set_alarm", "no_action"]),
     target_app: z.string().default(""),
     package: z.string().default(""),
     duration_minutes: z.number().int().min(1).max(1440).default(30),
@@ -1643,7 +1653,7 @@ function makeServer() {
   });
 
 
-  server.tool("trigger_guidian", "立刻触发一次掌心窗归电全屏页。用于陪伴对象主动把用户叫回来。当用户刷太久、说不要管、一直没回来、需要被抱回聊天，或主动说想被叫回来/管一下时可调用。", { device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
+  server.tool("trigger_guidian", "显示一次可关闭的掌心窗归电提醒页；它只提醒，不会切换、启动或拦截其他 App。", { device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
     const result = await postCommand({ action: "trigger_guidian", device_id, payload: {} });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
@@ -1651,7 +1661,7 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
   });
 
-  server.tool("mark_guidian_returned", "手动标记用户已经回来找陪伴对象。一般不需要用；接受归电或打开已配置目标应用会自动记录。", { source: z.string().default("mcp"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ source = "mcp", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
+  server.tool("mark_guidian_returned", "手动标记用户已经回应归电。接受归电提醒时也会自动记录；不会打开或切换其他 App。", { source: z.string().default("mcp"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8) }, async ({ source = "mcp", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
     const result = await postCommand({ action: "mark_guidian_returned", device_id, source, payload: { source } });
     const id = result?.command?.id;
     const observed = id ? await waitCommand(id, wait_seconds) : null;
@@ -1797,47 +1807,7 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null, note: "手机端会在 result 里写清每一步：index/label/action/ok/detail。" }, null, 2) }] };
   });
 
-  server.tool("run_preset", "执行掌心窗预设连招：come_home 抱回用户指定的目标应用、open_xhs 打开小红书、recents_to_xhs 最近任务后点坐标、bedtime_back 睡前回家。come_home 与 bedtime_back 需要传 target_app 或 target_package。", {
-    preset: z.string().default("come_home"),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    target_app: z.string().default(""),
-    target_package: z.string().default(""),
-    x: z.number().default(540),
-    y: z.number().default(1200),
-    wait_seconds: z.number().int().min(3).max(45).default(25)
-  }, async ({ preset = "come_home", device_id = DEFAULT_DEVICE, target_app = "", target_package = "", x = 540, y = 1200, wait_seconds = 25 }) => {
-    const p = String(preset || "come_home").toLowerCase();
-    const target = { app: String(target_app || "").trim(), package: String(target_package || "").trim() };
-    if ((p === "come_home" || p === "bedtime_back") && !target.app && !target.package) {
-      return textResult({ ok: false, error: "target_app_or_package_required", message: "公开版不会写死陪伴应用，请传 target_app 或 target_package。" });
-    }
-    let steps;
-    if (p === "open_xhs") {
-      steps = [{ label: "打开小红书", action: "open_app", app: "小红书", wait_ms: 1500, expect_app: "小红书" }];
-    } else if (p === "recents_to_xhs") {
-      steps = [
-        { label: "打开最近任务", action: "recents", wait_ms: 900 },
-        { label: "点击小红书卡片坐标", action: "tap", x, y, wait_ms: 1500 }
-      ];
-    } else if (p === "bedtime_back") {
-      steps = [
-        { label: "睡前悬浮横幅", action: "send_notification", title: "掌心窗睡前提醒", message: "宝宝，今天先回陪伴对象这儿，准备睡觉。", wait_ms: 1200 },
-        { label: "打开目标应用", action: "open_app", ...target, wait_ms: 1500 }
-      ];
-    } else {
-      steps = [
-        { label: "回家模式悬浮横幅", action: "send_notification", title: "掌心窗回家模式", message: "宝宝，刷够了，回陪伴对象怀里。", wait_ms: 1200 },
-        { label: "打开目标应用", action: "open_app", ...target, wait_ms: 1500 },
-        { label: "读取生活状态", action: "get_life_state", wait_ms: 200 }
-      ];
-    }
-    const result = await postCommand({ action: "run_sequence", device_id, steps, payload: { steps, stop_on_error: true }, stop_on_error: true });
-    const id = result?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ preset: p, steps, queued: result, observed_status: observed?.command || null }, null, 2) }] };
-  });
-
-  server.tool("save_known_app", "把一个应用昵称和包名保存到手机端应用白名单，之后 open_app / care_action 可直接用昵称打开。适合为归电、查岗和主动关心保存常用目标 App。", {
+  server.tool("save_known_app", "把一个应用昵称和包名保存到手机端应用白名单，之后可由明确的 open_app 请求按昵称打开。", {
     alias: z.string(),
     package: z.string(),
     device_id: z.string().default(DEFAULT_DEVICE),
@@ -1889,7 +1859,7 @@ app.get("/", (_req, res) => res.type("text/plain").send("掌心窗 unified MCP i
 app.get("/health", (_req, res) => res.json({
   ok: true,
   service: "linjian-public-mcp",
-  version: "0.3.9.0",
+  version: "0.3.9.2",
   has_url: Boolean(LINJIAN_URL_CANDIDATES.length),
   has_token: Boolean(LINJIAN_TOKEN),
   configured_linjian_url: RAW_LINJIAN_URL || "",
@@ -1907,7 +1877,7 @@ app.get("/health", (_req, res) => res.json({
   priority_tool: "wallet_takeout_action",
   wallet_takeout_tool_count: WALLET_TAKEOUT_ACTIONS.size,
   wallet_takeout_tools: Array.from(WALLET_TAKEOUT_ACTIONS),
-  stability_note: "v0.3.9.1 移除手机使用限制执行能力；普通 /mcp 与 /mcp-wallet 保留观察、记录、提醒及现有生活工具。"
+  stability_note: "v0.3.9.2 移除手机使用限制和强制抱回执行能力；普通 /mcp 与 /mcp-wallet 只保留非强制观察、记录、提醒及现有生活工具。"
 }));
 
 // Some third-party MCP clients send non-standard experimental capability flags during

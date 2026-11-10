@@ -42,9 +42,9 @@ public class ReminderActivity extends Activity {
         root.addView(msgView, mp);
 
         Button home = new Button(this);
-        home.setText(AppPrefs.returnButtonText(this));
+        home.setText("知道了");
         home.setTextSize(16);
-        home.setOnClickListener(v -> { String target = AppPrefs.homeTargetPackage(this); if (!target.isEmpty()) CompanionService.openPackageResult(this, target); finish(); });
+        home.setOnClickListener(v -> finish());
         root.addView(home, new LinearLayout.LayoutParams(-1, dp(48)));
 
         Button later = new Button(this);

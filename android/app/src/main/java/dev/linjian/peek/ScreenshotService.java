@@ -92,7 +92,7 @@ public class ScreenshotService extends AccessibilityService {
         super.onServiceConnected();
         instance = this;
         NowState.start(this);
-        DebugState.append(this, "无障碍服务已连接：截图/读屏/节点坐标/活动轨迹可用 v0.3.9.1");
+        DebugState.append(this, "无障碍服务已连接：截图/读屏/节点坐标/活动轨迹可用 v0.3.9.2");
         watchdog = new Handler(Looper.getMainLooper());
         watchdog.postDelayed(watchdogTick, 15000);
         startBackgroundPolling();

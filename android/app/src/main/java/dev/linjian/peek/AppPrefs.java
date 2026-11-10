@@ -11,8 +11,8 @@ import java.util.Map;
 
 public class AppPrefs {
     public static final String PREFS = "linjian_peek";
-    public static final String APP_VERSION_NAME = "0.3.9.1";
-    public static final int APP_VERSION_CODE = 30901;
+    public static final String APP_VERSION_NAME = "0.3.9.2";
+    public static final int APP_VERSION_CODE = 30902;
     public static final String KEY_SERVER = "server_url";
     public static final String KEY_TOKEN = "token";
     public static final String KEY_DEVICE = "device_id";
@@ -58,8 +58,6 @@ public class AppPrefs {
     public static final String KEY_HOME_WATCH_PACKAGES = "home_mode_watch_packages";
     public static final String KEY_HOME_THRESHOLD_MIN = "home_mode_threshold_min";
     public static final String KEY_HOME_COOLDOWN_MIN = "home_mode_cooldown_min";
-    public static final String KEY_HOME_TARGET_PACKAGE = "home_mode_target_package";
-    public static final String DEFAULT_HOME_TARGET_PACKAGE = "";
     public static final String DEFAULT_HOME_WATCH_PACKAGES = "com.ss.android.ugc.aweme,com.xingin.xhs";
 
     public static SharedPreferences get(Context ctx) { return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
@@ -227,44 +225,9 @@ public class AppPrefs {
         return false;
     }
 
-    public static String homeTargetPackage(Context ctx) {
-        String raw = get(ctx).getString(KEY_HOME_TARGET_PACKAGE, DEFAULT_HOME_TARGET_PACKAGE);
-        if (raw == null || raw.trim().isEmpty()) {
-            for (String pkg : targetApps(ctx).values()) return pkg;
-            return DEFAULT_HOME_TARGET_PACKAGE;
-        }
-        String resolved = packageForApp(ctx, raw.trim());
-        return (resolved == null || resolved.trim().isEmpty()) ? raw.trim() : resolved.trim();
-    }
-
-    public static String homeTargetLabel(Context ctx) {
-        String target = homeTargetPackage(ctx);
-        if (target.isEmpty()) return "未设置";
-        for (Map.Entry<String, String> e : targetApps(ctx).entrySet()) {
-            if (target.equals(e.getValue())) return e.getKey();
-        }
-        for (Map.Entry<String, String> e : allApps(ctx).entrySet()) {
-            if (target.equals(e.getValue())) return e.getKey();
-        }
-        return target;
-    }
-
-    public static String returnButtonText(Context ctx) {
-        return "回到" + companionName(ctx) + "这里";
-    }
-
     public static String seeButtonText(Context ctx) {
         return "给" + companionName(ctx) + "看一眼";
     }
-
-    public static String saveHomeTarget(Context ctx, String raw) {
-        String v = raw == null ? "" : raw.trim();
-        if (v.isEmpty()) return "";
-        String pkg = packageForApp(ctx, v);
-        if (pkg != null && pkg.trim().length() > 0) return pkg.trim();
-        return v;
-    }
-
 
     public static Map<String, String> defaultApps() {
         LinkedHashMap<String, String> apps = new LinkedHashMap<>();

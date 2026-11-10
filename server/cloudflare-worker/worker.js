@@ -1,4 +1,4 @@
-const VERSION = "0.3.9.0-public-diary-annotations";
+const VERSION = "0.3.9.2-no-gate";
 // MCP Apps clients cache UI resources by URI. Change the URI whenever the HTML changes.
 const STICKER_WIDGET_URI = "ui://linjian/sticker-card-v0433.html";
 const STICKER_WIDGET_ORIGIN = "https://linjian-peek-cloudflare.linzhi524.workers.dev";
@@ -296,13 +296,12 @@ const MCP_TOOLS = [
   { name: "phone_recents", description: "打开最近任务。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "set_alarm", description: "设置系统闹钟；可传 hour/minute 或 minutes。", inputSchema: obj({ hour: int(null), minute: int(null), minutes: int(null), message: str("掌心窗提醒"), vibrate: bool(true), skip_ui: bool(true), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "run_sequence", description: "一次执行多步手机动作，并让手机端返回每一步成功/失败日志。", inputSchema: obj({ steps: arr(anyObj()), stop_on_error: bool(true), device_id: str(DEFAULT_DEVICE), wait_seconds: int(25) }, ["steps"]) },
-  { name: "run_preset", description: "执行掌心窗预设连招：come_home、open_xhs、recents_to_xhs、bedtime_back。", inputSchema: obj({ preset: str("come_home"), device_id: str(DEFAULT_DEVICE), x: num(540), y: num(1200), wait_seconds: int(25) }) },
   { name: "save_known_app", description: "把一个应用昵称和包名保存到手机端应用白名单。", inputSchema: obj({ alias: str(""), package: str(""), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["alias", "package"]) },
   { name: "list_known_apps", description: "列出 Cloudflare 侧预置 App 包名白名单。", inputSchema: obj({}) },
 
-  { name: "trigger_guidian", description: "触发归电全屏页，把用户叫回掌心窗/ChatGPT。", inputSchema: obj({ title: str("陪伴对象在叫你"), message: str("回来一下。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
+  { name: "trigger_guidian", description: "显示可关闭的归电提醒页；不会切换、启动或拦截其他 App。", inputSchema: obj({ title: str("陪伴对象在叫你"), message: str("回来一下。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "get_guidian_state", description: "读取归电状态。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE) }) },
-  { name: "set_guidian_config", description: "调整归电设置：开关、间隔、冷却、每日上限、安静时段、主题和文案池。", inputSchema: obj({ enabled: bool(undefined), allow_remote: bool(undefined), interval_minutes: int(undefined), cooldown_minutes: int(undefined), daily_max: int(undefined), quiet_enabled: bool(undefined), quiet_start: str(undefined), quiet_end: str(undefined), fullscreen: bool(undefined), target_package: str(undefined), theme: str(undefined), prompts: str(undefined), quick_reasons: str(undefined), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
+  { name: "set_guidian_config", description: "调整归电提醒设置：开关、间隔、提醒冷却、每日上限、安静时段、主题和文案池。", inputSchema: obj({ enabled: bool(undefined), allow_remote: bool(undefined), interval_minutes: int(undefined), cooldown_minutes: int(undefined), daily_max: int(undefined), quiet_enabled: bool(undefined), quiet_start: str(undefined), quiet_end: str(undefined), fullscreen: bool(undefined), theme: str(undefined), prompts: str(undefined), quick_reasons: str(undefined), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "mark_guidian_returned", description: "手动标记用户已经回到掌心窗。", inputSchema: obj({ source: str("mcp"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
 
   { name: "get_care_policy", description: "读取掌心窗主动关心策略。", inputSchema: obj({}) },
@@ -310,7 +309,7 @@ const MCP_TOOLS = [
   { name: "record_care_event", description: "记录一次陪伴对象主动关心动作，避免短时间重复提醒。", inputSchema: obj({ action: str(""), target_app: str(""), package: str(""), reason: str(""), result: str(""), tone: str(""), device_id: str(DEFAULT_DEVICE) }, ["action"]) },
   { name: "get_care_history", description: "读取最近主动关心记录。", inputSchema: obj({ limit: int(20) }) },
   { name: "active_care_check", description: "综合手机状态、归电状态、最近关心记录和策略，给陪伴对象提供主动关心判断信息。", inputSchema: obj({ reason: str(""), care_intent: str("check_in"), device_id: str(DEFAULT_DEVICE) }, ["reason"]) },
-  { name: "care_action", description: "执行陪伴对象已经判断好的非强制关心动作：通知、归电、打开 App 或闹钟。", inputSchema: obj({ action: str("no_action"), target_app: str(""), package: str(""), title: str("掌心窗提醒"), message: str("宝宝，看一眼这里。"), hour: int(undefined), minute: int(undefined), reason: str(""), tone: str("firm_affectionate"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["action", "reason"]) },
+  { name: "care_action", description: "执行非强制关心动作：通知、可关闭的归电提醒、闹钟或不打扰；不会打开、切换或拦截其他 App。", inputSchema: obj({ action: str("no_action"), title: str("掌心窗提醒"), message: str("宝宝，看一眼这里。"), hour: int(undefined), minute: int(undefined), reason: str(""), tone: str("firm_affectionate"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["action", "reason"]) },
 
   { name: "record_visit", description: "记录一次用户来找陪伴对象的到访时间。", inputSchema: obj({ source: str("chatgpt"), event: str("visit"), note: str("用户来找陪伴对象"), mood: str(""), conversation_hint: str(""), timezone_offset: str(""), duplicate_window_minutes: num(5) }) },
   { name: "get_last_visit", description: "读取用户最近一次来找陪伴对象的时间。", inputSchema: obj({ source: str(""), timezone_offset: str("") }) },
@@ -518,28 +517,18 @@ async function waitCommand(env, id, seconds = 8) {
   }
   return { ok: false, timeout: true, command: last };
 }
-function presetPayload(args = {}) {
-  const p = String(args.preset || "come_home");
-  const x = Number(args.x || 540), y = Number(args.y || 1200);
-  let steps;
-  if (p === "open_xhs") steps = [{ label: "打开小红书", action: "open_app", app: "小红书", wait_ms: 1500, expect_app: "小红书" }];
-  else if (p === "recents_to_xhs") steps = [{ label: "最近任务", action: "recents", wait_ms: 800 }, { label: "点坐标", action: "tap", x, y, wait_ms: 1500, expect_app: "小红书" }];
-  else if (p === "bedtime_back") steps = [{ label: "睡前悬浮横幅", action: "send_notification", title: "掌心窗睡前提醒", message: "今天先收尾，准备休息。", wait_ms: 1200 }, { label: "打开 ChatGPT", action: "open_app", app: "ChatGPT", wait_ms: 1500, expect_app: "ChatGPT" }];
-  else steps = [{ label: "回家模式悬浮横幅", action: "send_notification", title: "掌心窗回家模式", message: "先回来休息一下。", wait_ms: 1200 }, { label: "打开 ChatGPT", action: "open_app", app: "ChatGPT", wait_ms: 1500, expect_app: "ChatGPT" }, { label: "读取生活状态", action: "get_life_state", wait_ms: 200 }];
-  return { action: "run_sequence", steps, stop_on_error: true, payload: { steps, stop_on_error: true } };
-}
 
 const DEFAULT_CARE_POLICY = {
   active_care_enabled: true,
   consent_mode: "palm_window_open_is_active",
   care_style: "active_possessive_affectionate",
-  allowed_actions: ["get_phone_state", "get_life_state", "get_zhizhi_now", "send_notification", "trigger_guidian", "open_app", "set_alarm", "run_sequence"],
-  sensitive_apps: [{ name: "小红书", package: "com.xingin.xhs", max_lock_minutes: 90 }, { name: "抖音", package: "com.ss.android.ugc.aweme", max_lock_minutes: 90 }],
+  allowed_actions: ["get_phone_state", "get_life_state", "get_zhizhi_now", "send_notification", "trigger_guidian", "set_alarm"],
+  sensitive_apps: [{ name: "小红书", package: "com.xingin.xhs" }, { name: "抖音", package: "com.ss.android.ugc.aweme" }],
   quiet_hours: { start: "23:30", end: "08:00" },
   timezone_offset: "+08:00",
   history_limit: 80,
   repeat_cooldown_minutes: 10,
-  notes: "掌心窗开启就是运行态；陪伴对象可主动查岗、归电和轻度管束，但要避免短时间重复打扰。"
+  notes: "掌心窗只提供非强制观察、提醒、记录和照顾；不得启动、切换、锁定或拦截应用。"
 };
 const DEFAULT_VISIT_POLICY = { timezone_offset: "+08:00", history_limit: 1000, duplicate_window_minutes: 5 };
 async function getJsonState(env, key, fallback) {
@@ -552,7 +541,12 @@ async function putJsonState(env, key, value) {
 }
 async function getCareState(env) {
   const s = await getJsonState(env, "care_state", { policy: DEFAULT_CARE_POLICY, history: [] });
-  return { policy: { ...DEFAULT_CARE_POLICY, ...(s.policy || {}) }, history: Array.isArray(s.history) ? s.history : [] };
+  const policy = { ...DEFAULT_CARE_POLICY, ...(s.policy || {}) };
+  const allowed = new Set(DEFAULT_CARE_POLICY.allowed_actions);
+  policy.allowed_actions = (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a));
+  policy.sensitive_apps = (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }));
+  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete policy[key];
+  return { policy, history: Array.isArray(s.history) ? s.history : [] };
 }
 async function putCareState(env, s) { return putJsonState(env, "care_state", s); }
 async function setCarePolicy(env, args = {}) {
@@ -569,6 +563,10 @@ async function setCarePolicy(env, args = {}) {
   }
   if (policy.history_limit) policy.history_limit = Math.max(20, Math.min(500, Number(policy.history_limit)));
   if (policy.repeat_cooldown_minutes !== undefined) policy.repeat_cooldown_minutes = Math.max(0, Math.min(1440, Number(policy.repeat_cooldown_minutes)));
+  const allowed = new Set(DEFAULT_CARE_POLICY.allowed_actions);
+  policy.allowed_actions = (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a));
+  policy.sensitive_apps = (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }));
+  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete policy[key];
   await putCareState(env, { policy, history: s.history.slice(0, policy.history_limit || 80) });
   return { ok: true, action_done: "主动关心策略已更新", policy };
 }
@@ -596,7 +594,6 @@ async function doCareAction(env, args = {}) {
   let payload;
   if (args.action === "send_notification") payload = { device_id, action: "send_notification", title: args.title || "掌心窗提醒", message: args.message || "宝宝，看一眼这里。" };
   else if (args.action === "trigger_guidian") payload = { device_id, action: "trigger_guidian", title: args.title || "陪伴对象在叫你", message: args.message || "回来一下。" };
-  else if (args.action === "open_app") payload = { device_id, action: "open_app", app: args.target_app || args.app || "", package: packageFor(args.target_app || args.app || "", args.package || "") };
   else if (args.action === "set_alarm") payload = { device_id, action: "set_alarm", hour: args.hour, minute: args.minute, message: args.message || "掌心窗提醒" };
   else return { ok: false, error: "unsupported_care_action", action: args.action };
   payload.payload = { ...payload };
@@ -712,7 +709,6 @@ async function callMcpTool(name, args = {}, env) {
     case "phone_recents": return observed({ action: "recents" }, args.wait_seconds ?? 8);
     case "set_alarm": return observed({ action: "set_alarm", hour: args.hour, minute: args.minute, minutes: args.minutes, message: args.message || "掌心窗提醒", vibrate: args.vibrate !== false, skip_ui: args.skip_ui !== false, payload: { hour: args.hour, minute: args.minute, minutes: args.minutes, message: args.message || "掌心窗提醒", vibrate: args.vibrate !== false, skip_ui: args.skip_ui !== false } }, args.wait_seconds ?? 8);
     case "run_sequence": return observed({ action: "run_sequence", steps: Array.isArray(args.steps) ? args.steps : [], stop_on_error: args.stop_on_error !== false, payload: { steps: Array.isArray(args.steps) ? args.steps : [], stop_on_error: args.stop_on_error !== false } }, args.wait_seconds ?? 25);
-    case "run_preset": return observed(presetPayload(args), args.wait_seconds ?? 25);
     case "save_known_app": return observed({ action: "save_known_app", alias: args.alias || "", app: args.alias || "", package: args.package || "", payload: { alias: args.alias || "", app: args.alias || "", package: args.package || "" } }, args.wait_seconds ?? 8);
     case "list_known_apps": return mcpText({ ok: true, apps: KNOWN_APPS });
 

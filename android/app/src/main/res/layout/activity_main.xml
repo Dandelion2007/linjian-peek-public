@@ -402,11 +402,10 @@
                 <Button android:id="@+id/drawerHomeModeButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="回家模式  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerHomeMode" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:id="@+id/homeModeStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="加载中…" android:textSize="11sp" android:textColor="#FF596D66" android:lineSpacingExtra="3dp" />
-                    <CheckBox android:id="@+id/homeModeEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启回家模式" android:textSize="11sp" />
+                    <CheckBox android:id="@+id/homeModeEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启回家模式（只提醒）" android:textSize="11sp" />
                     <EditText android:id="@+id/targetAppsInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="目标 APP，每行：名称|包名" android:textSize="11sp" android:singleLine="false" android:minLines="2" android:maxLines="6" />
                     <EditText android:id="@+id/homeThresholdInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="阈值分钟，默认 10" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
-                    <EditText android:id="@+id/homeCooldownInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="冷却分钟，默认 5" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
-                    <EditText android:id="@+id/homeTargetInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="返回目标，可填目标 APP 名称或包名" android:textSize="11sp" android:singleLine="true" />
+                    <EditText android:id="@+id/homeCooldownInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="重复提醒间隔分钟，默认 5" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>
@@ -451,7 +450,6 @@
                     <EditText android:id="@+id/guidianDailyMaxInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="每日最多归电次数，0 表示不限" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
                     <EditText android:id="@+id/guidianQuietStartInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="安静开始，例如 23:30" android:textSize="11sp" android:singleLine="true" />
                     <EditText android:id="@+id/guidianQuietEndInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="安静结束，例如 08:00" android:textSize="11sp" android:singleLine="true" />
-                    <EditText android:id="@+id/guidianTargetPackageInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="归电目标，可填目标 APP 名称或包名" android:textSize="11sp" android:singleLine="true" />
 
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="归电主题" android:textStyle="bold" android:textSize="13sp" android:textColor="#FF2D3E39" android:layout_marginTop="10dp" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
@@ -509,12 +507,10 @@
 
                 <Button android:id="@+id/drawerControlTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="本机测试工具  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerControlTest" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
-                    <Button android:id="@+id/openTargetAppButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开目标 APP" android:textSize="11sp" android:background="@drawable/pill_soft" />
-                    <Button android:id="@+id/openXhsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开小红书" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
+                    <Button android:id="@+id/openXhsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开小红书" android:textSize="11sp" android:background="@drawable/pill_soft" />
                     <Button android:id="@+id/recentsButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="最近任务" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                     <Button android:id="@+id/homeButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="回桌面" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                     <Button android:id="@+id/backButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="返回" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
-                    <Button android:id="@+id/sequenceTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="连招测试" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                     <Button android:id="@+id/notifyTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="测试悬浮通知" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                     <Button android:id="@+id/alarmTestButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="测试一分钟后闹钟" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                 </LinearLayout>
@@ -529,7 +525,7 @@
                 <Button android:id="@+id/drawerVersionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="版本、更新与许可  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
                 <LinearLayout android:id="@+id/drawerVersion" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="公开版更新" android:textStyle="bold" android:textSize="16sp" android:textColor="#FF2D3E39" />
-                    <TextView android:id="@+id/versionStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="当前版本：0.3.9.0（30900）" android:textSize="11sp" android:textColor="#FF596D66" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" />
+                    <TextView android:id="@+id/versionStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="当前版本：0.3.9.2（30902）" android:textSize="11sp" android:textColor="#FF596D66" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" />
                     <TextView android:id="@+id/updateChangelogText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="点击检查更新，可查看更新日志并前往下载最新版。" android:textSize="10sp" android:textColor="#FF7E928C" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
                         <Button android:id="@+id/checkUpdateButton" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:text="检查更新" android:textSize="11sp" android:background="@drawable/pill_soft" />

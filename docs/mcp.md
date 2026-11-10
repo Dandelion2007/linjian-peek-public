@@ -62,7 +62,6 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 - `tap_text(target_text, match, index, device_id, wait_seconds)`：按当前屏幕文字精准点击。
 - `input_text(text, append, device_id, wait_seconds)`：向当前已聚焦或第一个可编辑输入框输入文本。
 - `run_sequence(steps, device_id, stop_on_error, wait_seconds)`：一次执行多步动作，适合打开 App、等待、点击、输入、通知、截图等连招。
-- `run_preset(preset, device_id, x, y, wait_seconds)`：执行预设连招，例如回到目标 App、打开小红书、睡前回家等。
 
 ## App 与系统控制
 
