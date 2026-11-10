@@ -226,13 +226,19 @@ async function updateWindowWhisper(content, author = "陪伴对象") {
 
 function sanitizeCarePolicy(policy = {}) {
   const allowed = new Set(["get_phone_state", "get_life_state", "get_calendar_state", "upsert_calendar_event", "get_senses_state", "send_notification", "trigger_guidian", "set_alarm"]);
-  const sanitized = {
-    ...policy,
+  const merged = { ...DEFAULT_CARE_POLICY, ...policy };
+  return {
+    active_care_enabled: Boolean(merged.active_care_enabled),
+    consent_mode: String(merged.consent_mode || ""),
+    care_style: String(merged.care_style || ""),
     allowed_actions: (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a)),
-    sensitive_apps: (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }))
+    sensitive_apps: (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") })),
+    quiet_hours: merged.quiet_hours || DEFAULT_CARE_POLICY.quiet_hours,
+    timezone_offset: String(merged.timezone_offset || DEFAULT_CARE_POLICY.timezone_offset),
+    history_limit: Number(merged.history_limit || DEFAULT_CARE_POLICY.history_limit),
+    repeat_cooldown_minutes: Number(merged.repeat_cooldown_minutes ?? DEFAULT_CARE_POLICY.repeat_cooldown_minutes),
+    notes: String(merged.notes || "")
   };
-  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete sanitized[key];
-  return sanitized;
 }
 
 function loadCareState() {

@@ -541,11 +541,15 @@ async function putJsonState(env, key, value) {
 }
 async function getCareState(env) {
   const s = await getJsonState(env, "care_state", { policy: DEFAULT_CARE_POLICY, history: [] });
-  const policy = { ...DEFAULT_CARE_POLICY, ...(s.policy || {}) };
+  const merged = { ...DEFAULT_CARE_POLICY, ...(s.policy || {}) };
   const allowed = new Set(DEFAULT_CARE_POLICY.allowed_actions);
-  policy.allowed_actions = (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a));
-  policy.sensitive_apps = (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }));
-  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete policy[key];
+  const policy = {
+    active_care_enabled: Boolean(merged.active_care_enabled), consent_mode: String(merged.consent_mode || ""), care_style: String(merged.care_style || ""),
+    allowed_actions: (Array.isArray(merged.allowed_actions) ? merged.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a)),
+    sensitive_apps: (Array.isArray(merged.sensitive_apps) ? merged.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") })),
+    quiet_hours: merged.quiet_hours || DEFAULT_CARE_POLICY.quiet_hours, timezone_offset: String(merged.timezone_offset || DEFAULT_CARE_POLICY.timezone_offset),
+    history_limit: Number(merged.history_limit || DEFAULT_CARE_POLICY.history_limit), repeat_cooldown_minutes: Number(merged.repeat_cooldown_minutes ?? DEFAULT_CARE_POLICY.repeat_cooldown_minutes), notes: String(merged.notes || "")
+  };
   return { policy, history: Array.isArray(s.history) ? s.history : [] };
 }
 async function putCareState(env, s) { return putJsonState(env, "care_state", s); }
@@ -566,9 +570,14 @@ async function setCarePolicy(env, args = {}) {
   const allowed = new Set(DEFAULT_CARE_POLICY.allowed_actions);
   policy.allowed_actions = (Array.isArray(policy.allowed_actions) ? policy.allowed_actions : DEFAULT_CARE_POLICY.allowed_actions).filter((a) => allowed.has(a));
   policy.sensitive_apps = (Array.isArray(policy.sensitive_apps) ? policy.sensitive_apps : DEFAULT_CARE_POLICY.sensitive_apps).map((a) => ({ name: String(a?.name || ""), package: String(a?.package || "") }));
-  for (const key of ["lock_app", "unlock_app", "temporary_allow", "focus_mode", "global_focus", "gate_state", "executor_status", "expires_at", "target_package", "cooldown_target_package"]) delete policy[key];
-  await putCareState(env, { policy, history: s.history.slice(0, policy.history_limit || 80) });
-  return { ok: true, action_done: "主动关心策略已更新", policy };
+  const safePolicy = {
+    active_care_enabled: Boolean(policy.active_care_enabled), consent_mode: String(policy.consent_mode || ""), care_style: String(policy.care_style || ""),
+    allowed_actions: policy.allowed_actions, sensitive_apps: policy.sensitive_apps, quiet_hours: policy.quiet_hours || DEFAULT_CARE_POLICY.quiet_hours,
+    timezone_offset: String(policy.timezone_offset || DEFAULT_CARE_POLICY.timezone_offset), history_limit: Number(policy.history_limit || DEFAULT_CARE_POLICY.history_limit),
+    repeat_cooldown_minutes: Number(policy.repeat_cooldown_minutes ?? DEFAULT_CARE_POLICY.repeat_cooldown_minutes), notes: String(policy.notes || "")
+  };
+  await putCareState(env, { policy: safePolicy, history: s.history.slice(0, safePolicy.history_limit || 80) });
+  return { ok: true, action_done: "主动关心策略已更新", policy: safePolicy };
 }
 async function recordCareEvent(env, event = {}) {
   const s = await getCareState(env);
