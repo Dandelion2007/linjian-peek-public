@@ -189,15 +189,15 @@ update.json   版本更新信息
 
 1. 将源码包解压并覆盖到公开仓库根目录，确保 `.github`、`android`、`server`、`mcp` 位于根目录。
 2. 打开 GitHub 仓库 → **Actions** → **Build Android Public APK** → **Run workflow**。
-3. 构建成功后下载 `zhangxinchuang-public-v0.3.8.6-apk` artifact。
+3. 构建成功后下载 `zhangxinchuang-public-v0.3.9.2-apk` artifact。
 
 构建产物为：
 
 ```text
-android/Zhangxinchuang-public-v0.3.8.6.apk
+android/Zhangxinchuang-public-v0.3.9.2.apk
 ```
 
-版本名 `0.3.8.6`，版本码 `30806`。
+版本名 `0.3.9.2`，版本码 `30902`。
 
 ### 固定签名
 
