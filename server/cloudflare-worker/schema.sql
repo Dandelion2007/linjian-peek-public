@@ -39,9 +39,3 @@ CREATE TABLE IF NOT EXISTS companion_state (
   value_json TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS unlock_requests (
-  id TEXT PRIMARY KEY,
-  request_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);

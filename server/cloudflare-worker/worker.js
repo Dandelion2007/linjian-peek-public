@@ -13,13 +13,7 @@ const KNOWN_APPS = {
 };
 const ALLOWED_ACTIONS = new Set([
   "noop", "peek", "play_audio", "play_lingyin", "play_jingming", "open_app", "home", "back", "recents",
-  "screen_off", "turn_screen_off", "lock_screen", "phone_screen_off", "tap", "swipe", "set_alarm", "send_notification",
-  "run_sequence", "save_known_app", "get_screen_nodes", "tap_text", "input_text", "lock_app", "unlock_app",
-  "temporary_unlock_app", "extend_lock", "deny_unlock_request", "get_zhizhi_now", "get_lock_state", "set_emergency_passphrase",
-  "add_locked_app", "remove_locked_app", "list_lockable_apps", "screen_break_app", "start_screen_break", "screen_break",
-  "end_screen_break", "stop_screen_break", "temporary_screen_break_release", "temporary_screen_release", "extend_screen_break",
-  "deny_screen_break_release_request", "deny_break_release_request", "get_screen_break_state", "set_screen_break_passphrase",
-  "add_screen_break_app", "remove_screen_break_app", "list_screen_break_apps", "get_focus_status", "start_focus_mode", "end_focus_mode", "set_focus_plan", "request_focus_unlock", "reply_focus_request", "approve_focus_unlock", "deny_focus_unlock", "temporary_focus_unlock", "get_guidian_state", "set_guidian_config",
+  "tap", "swipe", "set_alarm", "send_notification", "run_sequence", "save_known_app", "get_screen_nodes", "tap_text", "input_text", "get_zhizhi_now", "get_guidian_state", "set_guidian_config",
   "trigger_guidian", "mark_guidian_returned", "get_calendar_state", "upsert_calendar_event", "add_calendar_event", "delete_calendar_event",
   "get_wallet_state", "get_wallet_month_state", "list_wallet_months", "add_wallet_record", "list_wallet_pending", "list_wallet_approvals", "submit_wallet_approval", "confirm_wallet_record", "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "get_wallet_rules", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout", "create_diary_book", "list_diary_books", "rename_diary_book", "update_diary_book_cover", "write_diary_entry", "list_diary_entries", "read_diary_entry", "read_diary_entry_with_annotations", "add_diary_annotation", "list_diary_annotations", "mark_diary_annotations_seen", "delete_diary_annotation", "search_diary_entries", "update_diary_entry", "delete_diary_entry", "delete_diary_book"
 ]);
@@ -59,8 +53,6 @@ async function handle(request, env) {
     if (path === "/api/activity/events") return listActivityEvents(env, url);
     if (path === "/api/latest.json") return latestMeta(env);
     if (path === "/api/latest") return latestScreenshot(env);
-    if (path === "/api/appgate/unlock_requests") return listUnlockRequests(env);
-    if (path === "/api/focus_state") return getNestedState(env, url, "focus_mode");
     if (path === "/api/stickers/list") return listStickersApi(env, url);
     if (path === "/api/stickers/search") return searchStickersApi(env, url);
     if (path === "/api/jingming/latest") return json({ ok: true, jingming: {}, note: "cloudflare_lite_no_audio_generation" });
@@ -76,7 +68,6 @@ async function handle(request, env) {
     if (path === "/api/activity/events") return saveActivityEvent(env, await readJson(request));
     if (path === "/api/companion/whisper") return saveWhisper(env, await readJson(request));
     if (path === "/api/companion/action") return saveCompanionAction(env, await readJson(request));
-    if (path === "/api/appgate/unlock_request") return saveUnlockRequest(env, await readJson(request));
     if (path === "/api/stickers/upload") return uploadStickerApi(env, await readJson(request));
     if (path === "/api/stickers/update") return updateStickerApi(env, await readJson(request));
     if (path === "/api/stickers/delete") return deleteStickerApi(env, await readJson(request));
@@ -303,7 +294,6 @@ const MCP_TOOLS = [
   { name: "phone_home", description: "让手机回到桌面。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "phone_back", description: "让手机返回上一页。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "phone_recents", description: "打开最近任务。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "phone_screen_off", description: "让手机立即息屏/锁屏。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "set_alarm", description: "设置系统闹钟；可传 hour/minute 或 minutes。", inputSchema: obj({ hour: int(null), minute: int(null), minutes: int(null), message: str("掌心窗提醒"), vibrate: bool(true), skip_ui: bool(true), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "run_sequence", description: "一次执行多步手机动作，并让手机端返回每一步成功/失败日志。", inputSchema: obj({ steps: arr(anyObj()), stop_on_error: bool(true), device_id: str(DEFAULT_DEVICE), wait_seconds: int(25) }, ["steps"]) },
   { name: "run_preset", description: "执行掌心窗预设连招：come_home、open_xhs、recents_to_xhs、bedtime_back。", inputSchema: obj({ preset: str("come_home"), device_id: str(DEFAULT_DEVICE), x: num(540), y: num(1200), wait_seconds: int(25) }) },
@@ -315,31 +305,12 @@ const MCP_TOOLS = [
   { name: "set_guidian_config", description: "调整归电设置：开关、间隔、冷却、每日上限、安静时段、主题和文案池。", inputSchema: obj({ enabled: bool(undefined), allow_remote: bool(undefined), interval_minutes: int(undefined), cooldown_minutes: int(undefined), daily_max: int(undefined), quiet_enabled: bool(undefined), quiet_start: str(undefined), quiet_end: str(undefined), fullscreen: bool(undefined), target_package: str(undefined), theme: str(undefined), prompts: str(undefined), quick_reasons: str(undefined), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "mark_guidian_returned", description: "手动标记用户已经回到掌心窗。", inputSchema: obj({ source: str("mcp"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
 
-  { name: "screen_break_app", description: "对指定 App 开启门禁/屏幕休息，支持紧急口令。", inputSchema: obj({ app: str(""), package: str(""), duration_minutes: num(30), mode: str("medium"), reason: str(""), message: str("回到掌心窗。"), emergency_passphrase: str(""), emergency_unlock_minutes: int(5), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "temporary_screen_break_release", description: "临时放行一个正在休息中的 App。", inputSchema: obj({ app: str(""), package: str(""), minutes: num(10), allow_type: str("real_time"), max_window_minutes: num(30), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "end_screen_break", description: "结束指定 App 的门禁/屏幕休息。", inputSchema: obj({ app: str(""), package: str(""), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "extend_screen_break", description: "延长指定 App 的门禁/屏幕休息。", inputSchema: obj({ app: str(""), package: str(""), minutes: num(10), reason: str(""), message: str(""), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "deny_screen_break_release_request", description: "拒绝这次恢复申请，并在手机端日志留下原因。", inputSchema: obj({ app: str(""), package: str(""), message: str("这次先不放行，回到掌心窗。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "get_screen_break_state", description: "读取手机端门禁/屏幕休息状态。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "list_screen_break_apps", description: "让手机列出可作为屏幕休息对象的已安装 App。", inputSchema: obj({ max: int(80), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "add_screen_break_app", description: "把一个 App 加到可管理名单。", inputSchema: obj({ alias: str(""), package: str(""), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["alias", "package"]) },
-  { name: "set_screen_break_passphrase", description: "为某个 App 当前休息状态设置/更新紧急口令。", inputSchema: obj({ app: str(""), package: str(""), passphrase: str(""), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["passphrase"]) },
-  { name: "get_screen_break_release_requests", description: "查看手机端提交的恢复申请。", inputSchema: obj({}) },
-
-
-  { name: "get_focus_status", description: "读取掌心窗专注模式状态：是否正在全屏锁定、剩余时间、应急次数、留言给他小窗消息和最近求助。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE) }) },
-  { name: "start_focus_mode", description: "开启全机专注：解锁后也会回到全屏锁定页，只留留言给他和应急放行；锁单个 App 请使用应用门禁。", inputSchema: obj({ duration_minutes: num(30), goal: str("早点休息"), target: str(""), mode: str("strict"), scope: str("full_phone"), managed_by_ai: bool(true), message: str("你提前把这段时间交给我了，我会帮你守住。"), guard_message: str(""), emergency_total: int(1), emergency_minutes: int(5), screen_off: bool(false), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "end_focus_mode", description: "结束掌心窗专注模式。只在用户明确要求结束或测试时使用；不要在半夜随便替用户解除。", inputSchema: obj({ reason: str("manual_end"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "set_focus_plan", description: "保存全机专注默认规则：目标、应急次数、每次应急分钟数和提醒文案；锁单个 App 请使用应用门禁。", inputSchema: obj({ enabled: bool(true), goal: str("早点休息"), target: str(""), mode: str("strict"), scope: str("full_phone"), managed_by_ai: bool(true), message: str("你提前把这段时间交给我了，我会帮你守住。"), guard_message: str(""), emergency_total: int(1), emergency_minutes: int(5), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "reply_focus_request", description: "回复锁定页“留言给他”小窗里的用户求助，只留言不放行。", inputSchema: obj({ message: str("我在。先别急，把原因告诉我。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["message"]) },
-  { name: "approve_focus_unlock", description: "批准一次专注模式应急放行，默认 5 分钟；时间到后会重新锁住。", inputSchema: obj({ minutes: int(5), message: str("应急放行已批准，时间到我会重新守住你。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
-  { name: "deny_focus_unlock", description: "拒绝这次专注模式放行申请，并在锁定页小窗里留下回复。", inputSchema: obj({ message: str("这次先不放行，我陪你把这段时间守住。"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }) },
   { name: "get_care_policy", description: "读取掌心窗主动关心策略。", inputSchema: obj({}) },
   { name: "set_care_policy", description: "设置掌心窗主动关心策略。", inputSchema: obj({ active_care_enabled: bool(undefined), consent_mode: str(""), care_style: str(""), allowed_actions: arr({ type: "string" }), sensitive_apps_json: str(""), quiet_start: str(""), quiet_end: str(""), timezone_offset: str(""), repeat_cooldown_minutes: int(undefined), history_limit: int(undefined), notes: str(""), policy_json: str("") }) },
   { name: "record_care_event", description: "记录一次陪伴对象主动关心动作，避免短时间重复提醒。", inputSchema: obj({ action: str(""), target_app: str(""), package: str(""), reason: str(""), result: str(""), tone: str(""), device_id: str(DEFAULT_DEVICE) }, ["action"]) },
   { name: "get_care_history", description: "读取最近主动关心记录。", inputSchema: obj({ limit: int(20) }) },
   { name: "active_care_check", description: "综合手机状态、归电状态、最近关心记录和策略，给陪伴对象提供主动关心判断信息。", inputSchema: obj({ reason: str(""), care_intent: str("check_in"), device_id: str(DEFAULT_DEVICE) }, ["reason"]) },
-  { name: "care_action", description: "执行陪伴对象已经判断好的关心动作：通知、归电、门禁、打开 App、闹钟等。", inputSchema: obj({ action: str("no_action"), target_app: str(""), package: str(""), duration_minutes: int(30), title: str("掌心窗提醒"), message: str("宝宝，看一眼这里。"), hour: int(undefined), minute: int(undefined), reason: str(""), tone: str("firm_affectionate"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["action", "reason"]) },
+  { name: "care_action", description: "执行陪伴对象已经判断好的非强制关心动作：通知、归电、打开 App 或闹钟。", inputSchema: obj({ action: str("no_action"), target_app: str(""), package: str(""), title: str("掌心窗提醒"), message: str("宝宝，看一眼这里。"), hour: int(undefined), minute: int(undefined), reason: str(""), tone: str("firm_affectionate"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["action", "reason"]) },
 
   { name: "record_visit", description: "记录一次用户来找陪伴对象的到访时间。", inputSchema: obj({ source: str("chatgpt"), event: str("visit"), note: str("用户来找陪伴对象"), mood: str(""), conversation_hint: str(""), timezone_offset: str(""), duplicate_window_minutes: num(5) }) },
   { name: "get_last_visit", description: "读取用户最近一次来找陪伴对象的时间。", inputSchema: obj({ source: str(""), timezone_offset: str("") }) },
@@ -379,8 +350,8 @@ const MCP_TOOLS = [
   { name: "record_takeout_order", description: "用户付款后，把这顿外卖记入小金库饮食分类。", inputSchema: obj({ amount: num(undefined), card_id: str(""), merchant: str(""), note: str("外卖"), device_id: str(DEFAULT_DEVICE), wait_seconds: int(8) }, ["amount"]) },
 
 
-  { name: "get_senses_state", description: "读取轻量感官状态：生活状态、归电、门禁和最近活动；不包含声息、聆音、鲸鸣。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE) }) },
-  { name: "send_phone_command", description: "通用手机命令队列入口，支持 open_app/home/back/recents/screen_off/tap/swipe/set_alarm/send_notification/run_sequence、屏幕休息、归电、读屏、输入等旧版 action。", inputSchema: obj({ action: str("noop"), app: str(""), package: str(""), payload: anyObj(), device_id: str(DEFAULT_DEVICE), wait_seconds: int(0) }, ["action"]) }
+  { name: "get_senses_state", description: "读取轻量感官状态：生活状态、归电和最近活动；不包含声息、聆音、鲸鸣。", inputSchema: obj({ device_id: str(DEFAULT_DEVICE) }) },
+  { name: "send_phone_command", description: "通用手机命令队列入口，支持 open_app/home/back/recents/tap/swipe/set_alarm/send_notification/run_sequence、归电、读屏和输入。", inputSchema: obj({ action: str("noop"), app: str(""), package: str(""), payload: anyObj(), device_id: str(DEFAULT_DEVICE), wait_seconds: int(0) }, ["action"]) }
 ];
 
 function obj(properties = {}, required = []) { return { type: "object", properties, required, additionalProperties: false }; }
@@ -562,7 +533,7 @@ const DEFAULT_CARE_POLICY = {
   active_care_enabled: true,
   consent_mode: "palm_window_open_is_active",
   care_style: "active_possessive_affectionate",
-  allowed_actions: ["get_phone_state", "get_life_state", "get_zhizhi_now", "send_notification", "trigger_guidian", "screen_break_app", "start_focus_mode", "get_focus_status", "end_focus_mode", "end_screen_break", "extend_screen_break", "open_app", "set_alarm", "phone_screen_off", "run_sequence"],
+  allowed_actions: ["get_phone_state", "get_life_state", "get_zhizhi_now", "send_notification", "trigger_guidian", "open_app", "set_alarm", "run_sequence"],
   sensitive_apps: [{ name: "小红书", package: "com.xingin.xhs", max_lock_minutes: 90 }, { name: "抖音", package: "com.ss.android.ugc.aweme", max_lock_minutes: 90 }],
   quiet_hours: { start: "23:30", end: "08:00" },
   timezone_offset: "+08:00",
@@ -615,7 +586,7 @@ async function buildActiveCareCheck(env, args = {}) {
   const guidian = await responseJson(await getNestedState(env, fakeUrl(`/api/guidian_state?${qs({ device_id })}`), "guidian_state"));
   const care = await getCareState(env);
   const currentApp = raw?.state?.current_app || raw?.state?.app || raw?.state?.current_package || "";
-  return { ok: true, reason: args.reason || "", care_intent: args.care_intent || "check_in", policy: care.policy, recent_care: care.history.slice(0, 10), phone_state: raw?.state || null, guidian_state: guidian?.guidian_state || {}, suggestion_note: `当前 App：${currentApp || "未知"}。工具只提供判断信息，是否通知/归电/门禁由陪伴对象结合聊天语境决定。` };
+  return { ok: true, reason: args.reason || "", care_intent: args.care_intent || "check_in", policy: care.policy, recent_care: care.history.slice(0, 10), phone_state: raw?.state || null, guidian_state: guidian?.guidian_state || {}, suggestion_note: `当前 App：${currentApp || "未知"}。工具只提供判断信息，是否通知或归电由陪伴对象结合聊天语境决定。` };
 }
 async function doCareAction(env, args = {}) {
   const care = await getCareState(env);
@@ -625,8 +596,6 @@ async function doCareAction(env, args = {}) {
   let payload;
   if (args.action === "send_notification") payload = { device_id, action: "send_notification", title: args.title || "掌心窗提醒", message: args.message || "宝宝，看一眼这里。" };
   else if (args.action === "trigger_guidian") payload = { device_id, action: "trigger_guidian", title: args.title || "陪伴对象在叫你", message: args.message || "回来一下。" };
-  else if (args.action === "screen_break_app") { const duration = clampNum(args.duration_minutes, 1, 1440, 30); payload = { device_id, action: "screen_break_app", app: args.target_app || args.app || "", package: packageFor(args.target_app || args.app || "", args.package || ""), duration_minutes: duration, locked_until_ms: Date.now() + duration * 60000, mode: "medium", reason: args.reason || "", message: args.message || "回到掌心窗。" }; }
-  else if (args.action === "end_screen_break") payload = { device_id, action: "end_screen_break", app: args.target_app || args.app || "", package: packageFor(args.target_app || args.app || "", args.package || "") };
   else if (args.action === "open_app") payload = { device_id, action: "open_app", app: args.target_app || args.app || "", package: packageFor(args.target_app || args.app || "", args.package || "") };
   else if (args.action === "set_alarm") payload = { device_id, action: "set_alarm", hour: args.hour, minute: args.minute, message: args.message || "掌心窗提醒" };
   else return { ok: false, error: "unsupported_care_action", action: args.action };
@@ -741,7 +710,6 @@ async function callMcpTool(name, args = {}, env) {
     case "phone_home": return observed({ action: "home" }, args.wait_seconds ?? 8);
     case "phone_back": return observed({ action: "back" }, args.wait_seconds ?? 8);
     case "phone_recents": return observed({ action: "recents" }, args.wait_seconds ?? 8);
-    case "phone_screen_off": return observed({ action: "phone_screen_off" }, args.wait_seconds ?? 8);
     case "set_alarm": return observed({ action: "set_alarm", hour: args.hour, minute: args.minute, minutes: args.minutes, message: args.message || "掌心窗提醒", vibrate: args.vibrate !== false, skip_ui: args.skip_ui !== false, payload: { hour: args.hour, minute: args.minute, minutes: args.minutes, message: args.message || "掌心窗提醒", vibrate: args.vibrate !== false, skip_ui: args.skip_ui !== false } }, args.wait_seconds ?? 8);
     case "run_sequence": return observed({ action: "run_sequence", steps: Array.isArray(args.steps) ? args.steps : [], stop_on_error: args.stop_on_error !== false, payload: { steps: Array.isArray(args.steps) ? args.steps : [], stop_on_error: args.stop_on_error !== false } }, args.wait_seconds ?? 25);
     case "run_preset": return observed(presetPayload(args), args.wait_seconds ?? 25);
@@ -754,33 +722,6 @@ async function callMcpTool(name, args = {}, env) {
       const payload = withoutKeys(args, ["device_id", "wait_seconds"]);
       return observed({ action: "set_guidian_config", ...payload, payload }, args.wait_seconds ?? 8);
     }
-
-    case "screen_break_app": {
-      const app = args.app || ""; const pkg = packageFor(app, args.package || ""); const duration = Number(args.duration_minutes || 30); const locked_until_ms = Date.now() + Math.round(duration * 60000);
-      const payload = { app, package: pkg, duration_minutes: duration, locked_until_ms, mode: args.mode || "medium", reason: args.reason || "", message: args.message || "回到掌心窗。", emergency_passphrase: args.emergency_passphrase || "", emergencyPassphrase: args.emergency_passphrase || "", emergency_unlock_minutes: args.emergency_unlock_minutes ?? 5, emergencyUnlockMinutes: args.emergency_unlock_minutes ?? 5 };
-      return observed({ action: "screen_break_app", ...payload, payload }, args.wait_seconds ?? 8);
-    }
-    case "temporary_screen_break_release": {
-      const app = args.app || ""; const pkg = packageFor(app, args.package || ""); const payload = { app, package: pkg, minutes: Number(args.minutes || 10), allowed_minutes: Number(args.minutes || 10), allow_type: args.allow_type || "real_time", max_window_minutes: Number(args.max_window_minutes || 30) };
-      return observed({ action: "temporary_screen_break_release", ...payload, payload }, args.wait_seconds ?? 8);
-    }
-    case "end_screen_break": return observed({ action: "end_screen_break", app: args.app || "", package: packageFor(args.app || "", args.package || ""), payload: { app: args.app || "", package: packageFor(args.app || "", args.package || "") } }, args.wait_seconds ?? 8);
-    case "extend_screen_break": return observed({ action: "extend_screen_break", app: args.app || "", package: packageFor(args.app || "", args.package || ""), minutes: Number(args.minutes || 10), duration_minutes: Number(args.minutes || 10), reason: args.reason || "", message: args.message || "", payload: { app: args.app || "", package: packageFor(args.app || "", args.package || ""), minutes: Number(args.minutes || 10), duration_minutes: Number(args.minutes || 10), reason: args.reason || "", message: args.message || "" } }, args.wait_seconds ?? 8);
-    case "deny_screen_break_release_request": return observed({ action: "deny_screen_break_release_request", app: args.app || "", package: packageFor(args.app || "", args.package || ""), message: args.message || "这次先不放行，回到掌心窗。", payload: { app: args.app || "", package: packageFor(args.app || "", args.package || ""), message: args.message || "这次先不放行，回到掌心窗。" } }, args.wait_seconds ?? 8);
-    case "get_screen_break_state": return observed({ action: "get_screen_break_state" }, args.wait_seconds ?? 8);
-    case "list_screen_break_apps": return observed({ action: "list_screen_break_apps", max: Number(args.max || 80), payload: { max: Number(args.max || 80) } }, args.wait_seconds ?? 8);
-    case "add_screen_break_app": return observed({ action: "add_screen_break_app", app: args.alias || "", alias: args.alias || "", package: args.package || "", payload: { alias: args.alias || "", app: args.alias || "", package: args.package || "" } }, args.wait_seconds ?? 8);
-    case "set_screen_break_passphrase": return observed({ action: "set_screen_break_passphrase", app: args.app || "", package: packageFor(args.app || "", args.package || ""), passphrase: args.passphrase || "", emergency_passphrase: args.passphrase || "", emergencyPassphrase: args.passphrase || "", payload: { app: args.app || "", package: packageFor(args.app || "", args.package || ""), passphrase: args.passphrase || "", emergency_passphrase: args.passphrase || "", emergencyPassphrase: args.passphrase || "" } }, args.wait_seconds ?? 8);
-    case "get_screen_break_release_requests": return mcpText(await responseJson(await listUnlockRequests(env)));
-
-
-    case "get_focus_status": { const s = await state(); return mcpText({ ok: true, device_id, focus_mode: s?.state?.focus_mode || {}, note: "若 focus_mode 为空，请先让手机端启动并上传一次状态。" }); }
-    case "start_focus_mode": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "start_focus_mode"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
-    case "end_focus_mode": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "end_focus_mode"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
-    case "set_focus_plan": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "set_focus_plan"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
-    case "reply_focus_request": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "reply_focus_request"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
-    case "approve_focus_unlock": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "approve_focus_unlock"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
-    case "deny_focus_unlock": { const payload = withoutKeys(args, ["device_id", "wait_seconds"]); payload.action = "deny_focus_unlock"; return observed({ ...payload, payload }, args.wait_seconds ?? 8); }
 
     case "get_care_policy": return mcpText({ ok: true, policy: (await getCareState(env)).policy, storage: "cloudflare_d1:companion_state.care_state" });
     case "set_care_policy": return mcpText(await setCarePolicy(env, args || {}));
@@ -854,10 +795,12 @@ async function callMcpTool(name, args = {}, env) {
     }
     case "get_senses_state": {
       const s = await state(); const care = await getCareState(env);
-      return mcpText({ ok: true, device_id, cloudflare_light_senses: true, note: "Cloudflare 轻量版不包含声息、聆音、鲸鸣。", life_state: s?.state || null, guidian_state: s?.state?.guidian_state || {}, screen_break_state: s?.state?.screen_break_state || s?.state?.app_gate || {}, focus_mode: s?.state?.focus_mode || {}, recent_care: care.history.slice(0, 5) });
+      return mcpText({ ok: true, device_id, cloudflare_light_senses: true, note: "Cloudflare 轻量版不包含声息、聆音、鲸鸣。", life_state: s?.state || null, guidian_state: s?.state?.guidian_state || {}, recent_care: care.history.slice(0, 5) });
     }
     case "send_phone_command": {
       const payload = { ...(args.payload && typeof args.payload === "object" ? args.payload : {}), ...withoutKeys(args, ["wait_seconds"]) };
+      const action = String(payload.action || "noop").trim().toLowerCase();
+      if (!ALLOWED_ACTIONS.has(action)) return mcpText({ ok: false, error: "unsupported_or_removed_action", action }, true);
       const wait = Number(args.wait_seconds || 0);
       return wait > 0 ? observed(payload, wait) : mcpText(await enqueue(payload));
     }
@@ -1294,7 +1237,7 @@ async function queueCommand(env, data) {
   return json({ ok: true, command: cmd, queued: true });
 }
 function titleFor(action) {
-  const map = { start_focus_mode: "开启专注模式", end_focus_mode: "结束专注模式", set_focus_plan: "设置专注规则", reply_focus_request: "回复专注求助", approve_focus_unlock: "批准专注应急", deny_focus_unlock: "拒绝专注应急", get_focus_status: "查看专注模式", send_notification: "发送提醒", set_alarm: "设置闹钟", trigger_guidian: "发起归电", mark_guidian_returned: "标记归电返回", set_guidian_config: "调整归电设置", screen_off: "让手机息屏", phone_screen_off: "让手机息屏", open_app: "打开应用", tap_text: "按文字点击", input_text: "输入文字", get_screen_nodes: "读取屏幕节点", screen_break_app: "开启应用门禁", temporary_screen_break_release: "临时放行应用", end_screen_break: "解除应用门禁", extend_screen_break: "延长应用门禁", deny_screen_break_release_request: "拒绝恢复申请", get_screen_break_state: "查看应用门禁状态", list_screen_break_apps: "列出可门禁应用", add_screen_break_app: "添加门禁应用", set_screen_break_passphrase: "设置门禁口令", get_calendar_state: "查看守护日历", upsert_calendar_event: "更新守护日历", get_wallet_state: "查看小金库", add_wallet_record: "添加小金库账单", list_wallet_pending: "查看待审批", confirm_wallet_record: "处理小金库账单", get_wallet_rules: "查看小金库规则", set_wallet_rules: "设置小金库规则", wallet_approval_request: "小金库花钱处理", save_wallet_request_result: "保存小金库处理结果", update_wallet_request_result: "更新小金库处理结果", get_takeout_state: "查看外卖助手", list_takeout_cards: "查看常点套餐", set_takeout_budget: "设置外卖预算", add_takeout_card: "保存常点套餐", update_takeout_card: "更新常点套餐", suggest_takeout_options: "推荐外卖", create_takeout_plan: "生成外卖计划", takeout_wallet_request: "外卖小金库申请", open_takeout_link: "打开外卖链接", copy_takeout_note: "复制外卖备注", record_takeout_order: "记录外卖账单", prepare_takeout_checkout: "自动点到付款页", auto_takeout_checkout: "自动点到付款页", get_takeout_checkout_status: "查看自动点单状态", cancel_takeout_checkout: "停止自动点单", peek: "查看屏幕", run_sequence: "执行组合动作", save_known_app: "保存应用别名", home: "回到手机桌面", back: "返回上一页", recents: "打开最近任务" };
+  const map = { send_notification: "发送提醒", set_alarm: "设置闹钟", trigger_guidian: "发起归电", mark_guidian_returned: "标记归电返回", set_guidian_config: "调整归电设置", open_app: "打开应用", tap_text: "按文字点击", input_text: "输入文字", get_screen_nodes: "读取屏幕节点", get_calendar_state: "查看守护日历", upsert_calendar_event: "更新守护日历", get_wallet_state: "查看小金库", add_wallet_record: "添加小金库账单", list_wallet_pending: "查看待审批", confirm_wallet_record: "处理小金库账单", get_wallet_rules: "查看小金库规则", set_wallet_rules: "设置小金库规则", wallet_approval_request: "小金库花钱处理", save_wallet_request_result: "保存小金库处理结果", update_wallet_request_result: "更新小金库处理结果", get_takeout_state: "查看外卖助手", list_takeout_cards: "查看常点套餐", set_takeout_budget: "设置外卖预算", add_takeout_card: "保存常点套餐", update_takeout_card: "更新常点套餐", suggest_takeout_options: "推荐外卖", create_takeout_plan: "生成外卖计划", takeout_wallet_request: "外卖小金库申请", open_takeout_link: "打开外卖链接", copy_takeout_note: "复制外卖备注", record_takeout_order: "记录外卖账单", prepare_takeout_checkout: "自动点到付款页", auto_takeout_checkout: "自动点到付款页", get_takeout_checkout_status: "查看自动点单状态", cancel_takeout_checkout: "停止自动点单", peek: "查看屏幕", run_sequence: "执行组合动作", save_known_app: "保存应用别名", home: "回到手机桌面", back: "返回上一页", recents: "打开最近任务" };
   return map[action] || `执行 ${action}`;
 }
 async function pollCommand(env, url) {
@@ -1610,15 +1553,6 @@ async function saveWhisper(env, data) {
 async function saveCompanionAction(env, data) {
   const event = await upsertActivity(env, { ...data, source: "linche", type: data.type || data.kind || "activity", title: data.title || "完成了一次行动", subtitle: data.summary || data.subtitle || "", status: data.status || "completed" });
   return json({ ok: true, action: { id: event.id, at: event.created_at, kind: event.type, title: event.title, summary: event.subtitle, status: event.status, source: "linche" } });
-}
-async function saveUnlockRequest(env, data) {
-  const id = data.id || crypto.randomUUID(); const created = data.created_at || nowIso(); data.id = id; data.created_at = created;
-  await env.DB.prepare("INSERT OR REPLACE INTO unlock_requests(id, request_json, created_at) VALUES(?,?,?)").bind(id, JSON.stringify(data), created).run();
-  return json({ ok: true, request: data });
-}
-async function listUnlockRequests(env) {
-  const rows = await env.DB.prepare("SELECT request_json FROM unlock_requests ORDER BY created_at DESC LIMIT 50").all();
-  return json({ ok: true, requests: (rows.results || []).map(r => safeJson(r.request_json)) });
 }
 async function saveScreenshot(env, request) {
   if (!env.SCREENSHOT_KV) return json({ ok: false, error: "missing_kv_binding" }, 501);

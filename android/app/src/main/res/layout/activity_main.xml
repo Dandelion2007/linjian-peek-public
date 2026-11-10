@@ -334,7 +334,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- 守护：门禁、天气、提醒、周期、回家模式 -->
+        <!-- 守护：天气、提醒、周期、回家提醒 -->
         <ScrollView
             android:id="@+id/sectionGate"
             android:layout_width="match_parent"
@@ -361,21 +361,6 @@
                     <CheckBox android:id="@+id/calendarRepeatEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="每年重复" android:checked="true" android:textSize="11sp" />
                     <CheckBox android:id="@+id/calendarBannerEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="提前三天横幅提醒" android:checked="true" android:textSize="11sp" />
                     <Button android:id="@+id/saveCalendarEventButton" android:layout_width="match_parent" android:layout_height="38dp" android:text="保存到窗边" android:textSize="12sp" android:textColor="#FFFFFFFF" android:background="@drawable/pill_primary" android:layout_marginTop="8dp" />
-                </LinearLayout>
-
-                <Button android:id="@+id/drawerAppGateButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="应用门禁  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
-
-                <LinearLayout android:id="@+id/drawerAppGate" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:layout_marginBottom="8dp" android:visibility="gone">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="应用门禁" android:textStyle="bold" android:textSize="15sp" android:textColor="#FF2D3E39" />
-                    <CheckBox android:id="@+id/appGateEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启应用门禁" android:textSize="11sp" android:layout_marginTop="6dp" />
-                    <TextView android:id="@+id/gateStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="加载中…" android:textSize="11sp" android:textColor="#FF596D66" android:paddingTop="8dp" android:lineSpacingExtra="3dp" />
-                    <Button android:id="@+id/refreshGateButton" android:layout_width="wrap_content" android:layout_height="30dp" android:text="刷新门禁" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
-                    <Button android:id="@+id/drawerGateAddButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="添加可锁 App  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
-                    <LinearLayout android:id="@+id/drawerGateAdd" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginTop="6dp">
-                        <EditText android:id="@+id/gateAliasInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="门禁应用名，例如 小红书 / 抖音" android:textSize="11sp" android:singleLine="true" />
-                        <EditText android:id="@+id/gatePackageInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="包名，例如 com.xingin.xhs" android:textSize="11sp" android:singleLine="true" />
-                        <Button android:id="@+id/addGateAppButton" android:layout_width="wrap_content" android:layout_height="30dp" android:text="保存到门禁" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
-                    </LinearLayout>
                 </LinearLayout>
 
                 <Button android:id="@+id/drawerWeatherButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="天气地区  ›" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginBottom="8dp" />
@@ -418,7 +403,6 @@
                 <LinearLayout android:id="@+id/drawerHomeMode" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:id="@+id/homeModeStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="加载中…" android:textSize="11sp" android:textColor="#FF596D66" android:lineSpacingExtra="3dp" />
                     <CheckBox android:id="@+id/homeModeEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启回家模式" android:textSize="11sp" />
-                    <CheckBox android:id="@+id/homeModeForceEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="强制回目标 APP" android:textSize="11sp" />
                     <EditText android:id="@+id/targetAppsInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="目标 APP，每行：名称|包名" android:textSize="11sp" android:singleLine="false" android:minLines="2" android:maxLines="6" />
                     <EditText android:id="@+id/homeThresholdInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="阈值分钟，默认 10" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
                     <EditText android:id="@+id/homeCooldownInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="冷却分钟，默认 5" android:textSize="11sp" android:inputType="number" android:singleLine="true" />
@@ -511,7 +495,6 @@
                 <LinearLayout android:id="@+id/drawerNowState" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_bg" android:visibility="gone" android:layout_marginBottom="8dp">
                     <TextView android:id="@+id/nowStatePermissionText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="此刻状态会展示手机姿态、光线、当前 App、授权后的定位与媒体播放。" android:textSize="11sp" android:textColor="#FF596D66" android:lineSpacingExtra="3dp" />
                     <Button android:id="@+id/locationPermissionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开定位权限" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
-                    <Button android:id="@+id/overlayPermissionButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开悬浮窗权限" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                     <Button android:id="@+id/notificationListenerButton" android:layout_width="match_parent" android:layout_height="30dp" android:text="打开媒体状态权限" android:textSize="11sp" android:background="@drawable/pill_soft" android:layout_marginTop="6dp" />
                 </LinearLayout>
 

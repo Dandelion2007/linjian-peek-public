@@ -92,7 +92,7 @@ public class ScreenshotService extends AccessibilityService {
         super.onServiceConnected();
         instance = this;
         NowState.start(this);
-        DebugState.append(this, "无障碍服务已连接：截图/读屏/节点坐标/活动轨迹/远程息屏/专注模式可用 v0.3.9.0");
+        DebugState.append(this, "无障碍服务已连接：截图/读屏/节点坐标/活动轨迹可用 v0.3.9.1");
         watchdog = new Handler(Looper.getMainLooper());
         watchdog.postDelayed(watchdogTick, 15000);
         startBackgroundPolling();
@@ -106,14 +106,12 @@ public class ScreenshotService extends AccessibilityService {
         if (t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || t == AccessibilityEvent.TYPE_VIEW_SCROLLED) updateScreenText();
         if (t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != null) {
             ActivityEventStore.recordForegroundChange(this, pkg.toString());
-            FocusMode.onForegroundPackage(this, pkg.toString());
         }
         if (pkg != null && (
                 t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 || t == AccessibilityEvent.TYPE_WINDOWS_CHANGED
                 || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
                 || t == AccessibilityEvent.TYPE_VIEW_SCROLLED)) {
-            AppGate.onForegroundPackage(this, pkg.toString());
         }
     }
     @Override public void onInterrupt() { DebugState.append(this, "无障碍服务被中断"); }
@@ -320,11 +318,6 @@ public class ScreenshotService extends AccessibilityService {
     public boolean doBack() { return performGlobalAction(GLOBAL_ACTION_BACK); }
     public boolean doHome() { return performGlobalAction(GLOBAL_ACTION_HOME); }
     public boolean doRecents() { return performGlobalAction(GLOBAL_ACTION_RECENTS); }
-    public boolean doLockScreen() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false;
-        return performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
-    }
-
     public boolean doTap(float x, float y) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
         Path p = new Path(); p.moveTo(x, y);

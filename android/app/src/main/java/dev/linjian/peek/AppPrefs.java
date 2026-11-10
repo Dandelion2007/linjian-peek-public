@@ -11,8 +11,8 @@ import java.util.Map;
 
 public class AppPrefs {
     public static final String PREFS = "linjian_peek";
-    public static final String APP_VERSION_NAME = "0.3.9.0";
-    public static final int APP_VERSION_CODE = 30900;
+    public static final String APP_VERSION_NAME = "0.3.9.1";
+    public static final int APP_VERSION_CODE = 30901;
     public static final String KEY_SERVER = "server_url";
     public static final String KEY_TOKEN = "token";
     public static final String KEY_DEVICE = "device_id";
@@ -55,7 +55,6 @@ public class AppPrefs {
     public static final String KEY_FOREGROUND_POPUP = "foreground_popup_enabled";
     public static final String KEY_CUSTOM_APPS = "custom_apps_lines";
     public static final String KEY_HOME_MODE_ENABLED = "home_mode_enabled";
-    public static final String KEY_HOME_MODE_FORCE = "home_mode_force";
     public static final String KEY_HOME_WATCH_PACKAGES = "home_mode_watch_packages";
     public static final String KEY_HOME_THRESHOLD_MIN = "home_mode_threshold_min";
     public static final String KEY_HOME_COOLDOWN_MIN = "home_mode_cooldown_min";

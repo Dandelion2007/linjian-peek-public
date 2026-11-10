@@ -7,7 +7,7 @@ import org.json.JSONObject;
 
 import java.util.Locale;
 
-/** 回家模式：看见指定 App 连续停留过久时，悬浮横幅提醒，必要时强制抱回目标 App。 */
+/** 回家模式：看见指定 App 连续停留过久时，发送非强制提醒。 */
 public class HomeMode {
     private static final long MIN = 60L * 1000L;
     private static final String KEY_CURRENT_PKG = "home_mode_current_pkg";
@@ -19,11 +19,9 @@ public class HomeMode {
         try {
             SharedPreferences p = AppPrefs.get(ctx);
             o.put("enabled", p.getBoolean(AppPrefs.KEY_HOME_MODE_ENABLED, false));
-            o.put("force", p.getBoolean(AppPrefs.KEY_HOME_MODE_FORCE, false));
             o.put("watch_packages", AppPrefs.homeWatchPackages(ctx));
             o.put("threshold_minutes", p.getInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, 10));
             o.put("cooldown_minutes", p.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5));
-            o.put("target_package", AppPrefs.homeTargetPackage(ctx));
         } catch (Exception ignored) { }
         return o;
     }
@@ -32,10 +30,10 @@ public class HomeMode {
         try {
             SharedPreferences p = AppPrefs.get(ctx);
             if (!p.getBoolean(AppPrefs.KEY_HOME_MODE_ENABLED, false)) return "回家模式：关闭";
-            return "回家模式：开启" + (p.getBoolean(AppPrefs.KEY_HOME_MODE_FORCE, false) ? "（强制抱回）" : "（只弹窗）") +
+            return "回家模式：开启（只提醒）" +
                     "\n盯住：" + AppPrefs.homeWatchPackages(ctx) +
                     "\n超过：" + p.getInt(AppPrefs.KEY_HOME_THRESHOLD_MIN, 10) + " 分钟  冷却：" + p.getInt(AppPrefs.KEY_HOME_COOLDOWN_MIN, 5) + " 分钟" +
-                    "\n抱回：" + AppPrefs.homeTargetLabel(ctx);
+                    "\n不会自动切换或拦截应用";
         } catch (Exception e) { return "回家模式读取失败：" + ScreenshotService.shortMsg(e); }
     }
 
@@ -45,9 +43,6 @@ public class HomeMode {
             if (!p.getBoolean(AppPrefs.KEY_HOME_MODE_ENABLED, false)) { resetTracking(ctx); return; }
             String pkg = state.optString("current_package", "").trim();
             if (pkg.length() == 0 || pkg.equals(ctx.getPackageName())) { resetCurrent(p); return; }
-            String target = AppPrefs.homeTargetPackage(ctx);
-            boolean force = p.getBoolean(AppPrefs.KEY_HOME_MODE_FORCE, false);
-            if (!target.isEmpty() && pkg.equals(target)) { resetCurrent(p); return; }
             if (!isWatched(AppPrefs.homeWatchPackages(ctx), pkg)) { resetCurrent(p); return; }
 
             long now = System.currentTimeMillis();
@@ -68,14 +63,6 @@ public class HomeMode {
             String app = state.optString("current_app", pkg);
             boolean popup = CompanionService.showHomeModeNotification(ctx, "掌心窗回家模式", AppPrefs.userName(ctx) + "，你在 " + app + " 停了 " + ((now - start) / MIN) + " 分钟。休息一下，回到" + AppPrefs.companionName(ctx) + "这里吧。");
             DebugState.append(ctx, popup ? "回家模式已发悬浮横幅提醒：" + pkg : "回家模式提醒失败：" + pkg);
-            if (force) {
-                if (target.isEmpty()) {
-                    DebugState.append(ctx, "回家模式强制抱回跳过：未设置返回目标 APP");
-                } else {
-                    String result = CompanionService.openPackageResult(ctx, target);
-                    DebugState.append(ctx, "回家模式强制抱回：" + result);
-                }
-            }
         } catch (Exception e) {
             DebugState.append(ctx, "回家模式异常：" + ScreenshotService.shortMsg(e));
         }

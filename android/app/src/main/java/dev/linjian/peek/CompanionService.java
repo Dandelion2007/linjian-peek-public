@@ -198,27 +198,6 @@ public class CompanionService extends Service {
                 try { reportCommand(ctx, serverUrl, token, id, true, result); uploadStateThrottled(serverUrl, token, ctx, false); } catch (Exception ignored) { }
                 return;
             }
-            if (FocusMode.isFocusAction(action)) {
-                Context focusCtx = ScreenshotService.getInstance() != null ? ScreenshotService.getInstance() : ctx;
-                JSONObject rr = FocusMode.handleCommand(focusCtx, cmd);
-                boolean ok = rr.optBoolean("ok", false);
-                String result = rr.optString("result", rr.toString());
-                if (ok && ("start_focus_mode".equals(action) || "enable_focus_mode".equals(action))) {
-                    FocusMode.forceShowLockActivity(focusCtx);
-                }
-                DebugState.append(ctx, "执行专注模式命令 " + action + "：" + result);
-                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadStateThrottled(serverUrl, token, focusCtx, true); } catch (Exception ignored) { }
-                return;
-            }
-            if (isAppGateAction(action)) {
-                JSONObject rr = AppGate.handleCommand(ctx, normalizedGateCommand(cmd));
-                boolean ok = rr.optBoolean("ok", false);
-                String result = rr.optString("result", rr.toString());
-                DebugState.append(ctx, "执行应用门禁命令 " + action + "：" + result);
-                try { reportCommand(ctx, serverUrl, token, id, ok, result); uploadStateThrottled(serverUrl, token, ctx, false); } catch (Exception ignored) { }
-                return;
-            }
-
             if (isWalletAction(action)) {
                 JSONObject rr = WalletState.handleCommand(ctx, cmd);
                 boolean ok = rr.optBoolean("ok", false);
@@ -242,32 +221,6 @@ public class CompanionService extends Service {
             executeCommand(ctx, id, action, app, pkg, x, y, x1, y1, x2, y2, duration, hour, minute, title, message, vibrate, serverUrl, token, skipUi, targetText, inputText, match, index, append);
         } catch (Exception e) { DebugState.append(ctx, "命令解析异常：" + ScreenshotService.shortMsg(e)); }
     }
-
-    private static String normalizeGateAction(String action) {
-        if ("screen_break_app".equals(action) || "start_screen_break".equals(action) || "screen_break".equals(action)) return "lock_app";
-        if ("end_screen_break".equals(action) || "stop_screen_break".equals(action)) return "unlock_app";
-        if ("temporary_screen_break_release".equals(action) || "temporary_screen_release".equals(action)) return "temporary_unlock_app";
-        if ("extend_screen_break".equals(action)) return "extend_lock";
-        if ("deny_screen_break_release_request".equals(action) || "deny_break_release_request".equals(action)) return "deny_unlock_request";
-        if ("get_screen_break_state".equals(action)) return "get_lock_state";
-        if ("set_screen_break_passphrase".equals(action)) return "set_emergency_passphrase";
-        if ("add_screen_break_app".equals(action)) return "add_locked_app";
-        if ("remove_screen_break_app".equals(action)) return "remove_locked_app";
-        if ("list_screen_break_apps".equals(action)) return "list_lockable_apps";
-        return action;
-    }
-
-    private static JSONObject normalizedGateCommand(JSONObject cmd) throws Exception {
-        JSONObject copy = new JSONObject(cmd.toString());
-        copy.put("action", normalizeGateAction(copy.optString("action", "")));
-        return copy;
-    }
-
-    private static boolean isAppGateAction(String action) {
-        action = normalizeGateAction(action);
-        return "lock_app".equals(action) || "unlock_app".equals(action) || "temporary_unlock_app".equals(action) || "extend_lock".equals(action) || "deny_unlock_request".equals(action) || "get_lock_state".equals(action) || "set_emergency_passphrase".equals(action) || "add_locked_app".equals(action) || "remove_locked_app".equals(action) || "list_lockable_apps".equals(action);
-    }
-
 
     private static boolean isWalletAction(String action) {
         return "get_wallet_state".equals(action) || "get_wallet_month_state".equals(action) || "list_wallet_months".equals(action) || "add_wallet_record".equals(action) || "list_wallet_pending".equals(action) || "list_wallet_approvals".equals(action) || "list_companion_wallet_requests".equals(action) || "list_wallet_request_results".equals(action) || "submit_wallet_approval".equals(action) || "submit_companion_wallet_request".equals(action) || "decide_wallet_approval".equals(action) || "save_wallet_request_result".equals(action) || "update_wallet_request_result".equals(action) || "save_user_wallet_request_result".equals(action) || "edit_wallet_record".equals(action) || "update_wallet_record".equals(action) || "delete_wallet_record".equals(action) || "remove_wallet_record".equals(action) || "confirm_wallet_record".equals(action) || "get_wallet_rules".equals(action) || "set_wallet_rules".equals(action) || "wallet_approval_request".equals(action);
@@ -303,15 +256,6 @@ public class CompanionService extends Service {
             } else if (isWalletAction(action)) { JSONObject rr = WalletState.handleCommand(ctx, new JSONObject().put("action", action).put("amount", 0)); ok = rr.optBoolean("ok", false); result = rr.toString();
             } else if (isTakeoutAction(action)) { JSONObject rr = TakeoutState.handleCommand(ctx, new JSONObject().put("action", action)); ok = rr.optBoolean("ok", false); result = rr.toString();
             } else if ("get_calendar_state".equals(action) || "upsert_calendar_event".equals(action) || "add_calendar_event".equals(action) || "delete_calendar_event".equals(action)) { JSONObject rr = CalendarState.handleCommand(ctx, new JSONObject().put("action", action).put("title", title).put("date", message)); ok = rr.optBoolean("ok", false); result = rr.optString("result", rr.toString());
-            } else if (FocusMode.isFocusAction(action)) {
-                JSONObject focusCmd = new JSONObject().put("action", action).put("app", app).put("package", pkg);
-                if (duration > 0 && duration != 350) focusCmd.put("duration_minutes", Math.max(1, Math.round(duration / 60000.0)));
-                if (message != null && message.trim().length() > 0) focusCmd.put("message", message);
-                if (title != null && title.trim().length() > 0) focusCmd.put("goal", title);
-                Context focusCtx = ScreenshotService.getInstance() != null ? ScreenshotService.getInstance() : ctx;
-                JSONObject rr = FocusMode.handleCommand(focusCtx, focusCmd); ok = rr.optBoolean("ok", false); result = rr.optString("result", rr.toString());
-                if (ok && ("start_focus_mode".equals(action) || "enable_focus_mode".equals(action))) FocusMode.forceShowLockActivity(focusCtx);
-            } else if (isAppGateAction(action)) { JSONObject rr = AppGate.handleCommand(ctx, new JSONObject().put("action", normalizeGateAction(action)).put("app", app).put("package", pkg)); ok = rr.optBoolean("ok", false); result = rr.optString("result", rr.toString());
             } else if ("get_screen_nodes".equals(action)) {
                 if (svc != null) { svc.refreshScreenModel(); ok = true; result = svc.getScreenNodesJsonNow(); }
                 else result = "accessibility service not ready";
@@ -331,7 +275,6 @@ public class CompanionService extends Service {
             } else if ("home".equals(action)) { ok = svc != null && svc.doHome(); result = ok ? "home" : "home_failed_or_accessibility_missing";
             } else if ("back".equals(action)) { ok = svc != null && svc.doBack(); result = ok ? "back" : "back_failed_or_accessibility_missing";
             } else if ("recents".equals(action)) { ok = svc != null && svc.doRecents(); result = ok ? "recents" : "recents_failed_or_accessibility_missing";
-            } else if ("screen_off".equals(action) || "turn_screen_off".equals(action) || "lock_screen".equals(action) || "phone_screen_off".equals(action)) { ok = svc != null && svc.doLockScreen(); result = ok ? "screen_off" : "screen_off_failed_or_accessibility_missing_or_android_too_old";
             } else if ("tap".equals(action)) { ok = svc != null && svc.doTap(x, y); result = ok ? ("tap:" + x + "," + y) : "tap_failed_or_accessibility_missing";
             } else if ("swipe".equals(action)) { ok = svc != null && svc.doSwipe(x1, y1, x2, y2, duration); result = ok ? "swipe" : "swipe_failed_or_accessibility_missing";
             } else if ("set_alarm".equals(action)) { ok = setAlarm(ctx, hour, minute, message, vibrate, skipUi); result = ok ? "alarm " + hour + ":" + minute : "cannot set alarm";

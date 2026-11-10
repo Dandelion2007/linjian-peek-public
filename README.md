@@ -19,18 +19,14 @@
 
 ## v0.3.8.7 回家模式设置生效修复
 
-- 修复回家模式开关、强制抱回、阈值分钟、冷却分钟、返回目标输入后没有即时保存的问题。
 - 配置变化后清空回家模式当前计时与冷却缓存，避免关闭后仍沿用旧状态。
 - 只弹窗模式不再要求必须设置返回目标 APP；未设置返回目标时仍会按阈值发悬浮横幅。
 - 观察 APP 列表为空时回退到默认观察包名：抖音、小红书。
 - 版本号：`0.3.8.7` / `30807`，固定签名保持不变。
 
 
-## v0.3.8.6 应用门禁 OPPO/ColorOS 修复
 
-- 应用门禁优先级调整为：**全屏锁定页 > 全屏悬浮遮罩 > 回到桌面兜底**。
 - 修复部分 OPPO/ColorOS 设备锁定 App 后仍能继续滑动的问题。
-- 锁定命令写入后会立即检查当前前台包名；如果被锁 App 已经在前台，会立刻触发门禁。
 - 无障碍触发增加窗口变化、内容变化、滑动事件兜底，减少“锁了但没等到窗口切换”的漏拦截。
 - 版本号：`0.3.8.6` / `30806`，固定签名保持不变。
 
@@ -48,18 +44,12 @@
 - 修复部分用户更新后“机能写日记正文，但保存时报日记本 id 对不上”的问题。
 - `write_diary_entry` 现在支持 `book_id` 留空，旧 ID 对不上时会按 `book_name` 或唯一日记本兜底。
 - 如果没有日记本，会自动创建默认「TA 的日记」再写入；如果有多本且无法判断，会返回候选项，不会乱写。
-- 其它模块不改动：专注模式、应用门禁、小金库、外卖助手和守护日历保持 v0.3.8.2 行为。
 
 ## v0.3.8.6 守护页入口补丁
 
-- 修复普通用户在 App 前台找不到「专注模式」的问题。
-- 守护页 → 安心规则新增「专注模式」卡片，位置在「应用门禁」下面。
 - 点击后可查看专注状态、保存默认规则、开启 5 分钟测试；专注中可查看锁定页或结束专注。
-- 继续保留 MCP 远程工具，AI 仍可通过 `start_focus_mode` 等工具开启全机专注。
 
-## v0.3.8.6 专注模式与日记本重命名修复
 
-- 新增 Focus Mode 专注模式：AI 可通过 MCP 开启/结束/查询全机专注。
 - 专注锁定页支持“留言给他”和一次 1 分钟应急放行。
 - MCP `/health` 会显示 `focus_tools: true` 和专注工具清单，方便确认接口真的暴露。
 - 修复 `rename_diary_book`：缺少 `book_id` 时可通过 `old_name` 或唯一日记本自动重命名，减少模型反复调用 `list_diary_books`。
@@ -101,7 +91,6 @@
 
 ## v0.3.8.6 反馈修复
 
-- 应用门禁悬浮窗改为全屏触摸拦截兜底：全屏页受系统限制时，悬浮层会挡住下方 App 点击和滑动。
 - 小金库「待审批」统一改为「审批列表」，生活细节摘要改为“待处理/审批记录”，避免把历史记录误认成未处理。
 - 审批列表新增「我的申请」和「陪伴者的申请」分组，支持折叠查看，为双向申请做准备。
 - MCP 增加更中性的 `save_wallet_request_result` 处理结果工具，保留旧工具兼容。
@@ -151,9 +140,7 @@
 
 - 修复 MCP 状态读取容易超过 20 秒的问题：`get_phone_state` 改为快速读取服务器缓存，不再被活动日志记录或长轮询拖慢。
 - 缩短 MCP 到后端、命令排队和命令状态查询的默认等待时间，避免 Render 冷启动/网络波动时整条工具链卡死。
-- `open_app` / 门禁类工具增加空参数拦截：缺少 App 名称或包名时直接返回明确错误，不再下发到手机端形成 `package_empty`。
 - 增加常用 App 名称到包名的 MCP 侧兜底映射，例如小红书、抖音、微信、QQ、QQ音乐。
-- 保留 v0.3.6.3 的守护日历保存修复与应用门禁旧版工具名兼容。
 - 清理公开包里的 `server/.env` 与 `__pycache__`，只保留 `.env.example`。
 - 固定签名保持不变，可覆盖安装上一版公开版。
 
@@ -161,7 +148,6 @@
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/linzhi-524/linjian-peek-public)
 
 
-掌心窗公开版是一个可自部署的 Android 陪伴窗：手机端负责展示、截图/读屏、通知、日历、门禁与息屏等本机能力；同步后端负责保存状态和下发指令；MCP 服务负责把这些能力暴露给 AI 客户端使用。
 
 公开版对齐私人版的粉白卡片 UI，但不复制私人绑定内容。它适合作为公开模板，让用户自己填写名字、目标 App 和服务器配置。
 
@@ -169,9 +155,7 @@
 
 - **今日页**：今日窗语、今日专注、天气、下一件事、手机电量、此刻状态（姿态/光线/当前 App/授权后定位与媒体播放）、今日轨迹。
 - **陪伴页**：陪伴对象卡片、最近一句话、陪伴天数、下个纪念日、行动记录、归电入口，以及本机保存的“TA 的日记”。
-- **守护页**：守护日历、目标 App 设置、应用门禁、屏幕休息、提醒、天气、息屏。
 - **设置页**：服务器连接、Token、设备 ID、用户名称、陪伴对象名称、目标 App、权限、主动提醒、周期、主题、调试、版本更新、许可。
-- **MCP**：截图、读屏、点击、输入、通知、天气、日历、归电、门禁、屏幕休息、提醒、到访记录、关心策略等通用工具。
 
 公开版只保留适合公开发布和自部署的通用能力，不包含私人绑定内容、私人 Token、私人服务地址、固定人物关系或不可公开的专属接口。
 
@@ -183,7 +167,6 @@
 - `companionName`：AI 或陪伴对象名字，留空时默认“陪伴者”。
 - `targetApps`：目标 App 列表，每行一个，格式为 `名称|Android包名`，例如 `ChatGPT|com.openai.chatgpt`。
 
-姓名会用于主要界面文案、归电页、提醒、门禁和行动记录。目标 App 会用于归电目标、守护统计、门禁/屏幕休息、回家模式和 MCP 打开 App。
 
 ## 目录结构
 
@@ -418,22 +401,18 @@ MCP 详细工具说明见 [docs/mcp.md](docs/mcp.md)。常用工具分组如下�
 
 - **状态与截图**：`linjian_status`、`peek_screen`、`latest_screen`、`get_life_state`、`get_phone_state`、`get_screen_nodes`。
 - **点击与输入**：`tap_text`、`input_text`、`send_phone_command`、`run_sequence`、`run_preset`。
-- **App 控制**：`open_app`、`phone_home`、`phone_back`、`phone_recents`、`phone_screen_off`、`list_known_apps`、`save_known_app`。
 - **通知与提醒**：`send_notification`、`set_alarm`、`get_weather_state`、`send_weather_notification`。
 - **日历与窗语**：`get_window_whisper`、`set_window_whisper`、`list_guardian_days`、`add_guardian_day`、`update_guardian_day`、`delete_guardian_day`。
 - **TA 的日记**：创建/重命名日记本，写入、读取、搜索、更新和删除本机日记；正文不默认上传云端。
 - **归电与关心**：`get_guidian_state`、`set_guidian_config`、`trigger_guidian`、`mark_guidian_returned`、`active_care_check`、`care_action`。
-- **门禁/屏幕休息**：`screen_break_app`、`temporary_screen_break_release`、`end_screen_break`、`extend_screen_break`、`get_screen_break_state`、`list_screen_break_apps`、`add_screen_break_app`、`set_screen_break_passphrase`。
 - **到访与活动**：`record_visit`、`get_last_visit`、`get_visit_history`、`get_visit_stats`、`get_activity_events`、`add_activity_event`、`get_companion_actions`。
 
-截图、读屏、自动点击、输入、门禁、息屏和自动评论都属于敏感能力，只应在本人设备、本人服务和明确授权的 MCP 客户端中使用。
 
 ## 安全边界
 
 - 不要公开 `LINJIAN_TOKEN`。
 - 不要把 MCP 服务连接到不可信客户端。
 - 不要用掌心窗管理别人的设备。
-- 自动发送评论、点击按钮、读屏、截图、门禁、息屏等动作建议默认手动确认。
 - 公开版不应写死私人姓名、私人关系、私人服务地址或私人接口。
 
 许可条款见 [LICENSE](LICENSE)。本项目不是 MIT/Apache/GPL 等开放源代码许可证；源码公开仅用于透明、学习、审计、个人自用部署和个人本地修改。未经项目作者明确书面许可，不得改名/换图标/换署名后重新发布衍生版本，也不得分发重新打包的 APK、镜像、压缩包或托管服务。

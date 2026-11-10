@@ -47,7 +47,7 @@ KNOWN_APPS = {
     "京东": "com.jingdong.app.mall", "jd": "com.jingdong.app.mall",
 }
 SENSITIVE_PACKAGES = {"com.eg.android.AlipayGphone", "com.tencent.mm.plugin.wallet"}
-ALLOWED_ACTIONS = {"noop", "peek", "open_app", "home", "back", "recents", "screen_off", "turn_screen_off", "lock_screen", "phone_screen_off", "tap", "swipe", "set_alarm", "send_notification", "run_sequence", "save_known_app", "get_screen_nodes", "tap_text", "input_text", "lock_app", "unlock_app", "temporary_unlock_app", "extend_lock", "deny_unlock_request", "get_lock_state", "set_emergency_passphrase", "add_locked_app", "remove_locked_app", "list_lockable_apps", "screen_break_app", "start_screen_break", "screen_break", "end_screen_break", "stop_screen_break", "temporary_screen_break_release", "temporary_screen_release", "extend_screen_break", "deny_screen_break_release_request", "deny_break_release_request", "get_screen_break_state", "set_screen_break_passphrase", "add_screen_break_app", "remove_screen_break_app", "list_screen_break_apps", "get_focus_status", "start_focus_mode", "end_focus_mode", "set_focus_plan", "reply_focus_request", "approve_focus_unlock", "deny_focus_unlock", "request_focus_unlock", "create_focus_request", "get_guidian_state", "set_guidian_config", "trigger_guidian", "mark_guidian_returned", "get_calendar_state", "upsert_calendar_event", "add_calendar_event", "delete_calendar_event", "create_diary_book", "list_diary_books", "rename_diary_book", "update_diary_book_cover", "write_diary_entry", "list_diary_entries", "read_diary_entry", "read_diary_entry_with_annotations", "add_diary_annotation", "list_diary_annotations", "mark_diary_annotations_seen", "delete_diary_annotation", "search_diary_entries", "update_diary_entry", "delete_diary_entry", "delete_diary_book", "get_wallet_state", "get_wallet_month_state", "list_wallet_months", "add_wallet_record", "list_wallet_pending", "list_wallet_approvals", "list_companion_wallet_requests", "list_wallet_request_results", "submit_wallet_approval", "submit_companion_wallet_request", "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "save_user_wallet_request_result", "edit_wallet_record", "update_wallet_record", "delete_wallet_record", "remove_wallet_record", "confirm_wallet_record", "get_wallet_rules", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "open_takeout_plan", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout"}
+ALLOWED_ACTIONS = {"noop", "peek", "open_app", "home", "back", "recents", "tap", "swipe", "set_alarm", "send_notification", "run_sequence", "save_known_app", "get_screen_nodes", "tap_text", "input_text", "get_guidian_state", "set_guidian_config", "trigger_guidian", "mark_guidian_returned", "get_calendar_state", "upsert_calendar_event", "add_calendar_event", "delete_calendar_event", "create_diary_book", "list_diary_books", "rename_diary_book", "update_diary_book_cover", "write_diary_entry", "list_diary_entries", "read_diary_entry", "read_diary_entry_with_annotations", "add_diary_annotation", "list_diary_annotations", "mark_diary_annotations_seen", "delete_diary_annotation", "search_diary_entries", "update_diary_entry", "delete_diary_entry", "delete_diary_book", "get_wallet_state", "get_wallet_month_state", "list_wallet_months", "add_wallet_record", "list_wallet_pending", "list_wallet_approvals", "list_companion_wallet_requests", "list_wallet_request_results", "submit_wallet_approval", "submit_companion_wallet_request", "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "save_user_wallet_request_result", "edit_wallet_record", "update_wallet_record", "delete_wallet_record", "remove_wallet_record", "confirm_wallet_record", "get_wallet_rules", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "open_takeout_plan", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout"}
 
 
 
@@ -222,7 +222,6 @@ class State:
         self.command_history: dict[str, dict] = {}
         self.commands_lock = Lock()
         self.device_states: dict[str, dict] = {}
-        self.unlock_requests: list[dict] = []
         self.companion_path = self.data_dir / "companion_state.json"
         self.companion_lock = Lock()
         self.companion_state = self._load_companion_state()
@@ -513,9 +512,6 @@ class Handler(BaseHTTPRequestHandler):
             with self.state.commands_lock:
                 found = self.state.command_history.get(cid) or next((c for c in self.state.commands if c.get("id") == cid), None)
             self._json(200, {"ok": bool(found), "command": found}); return
-        if path == "/api/appgate/unlock_requests":
-            if not self._require_token(): return
-            self._json(200, {"ok": True, "requests": self.state.unlock_requests[-50:]}); return
         if path == "/api/known_apps":
             self._json(200, {"ok": True, "apps": KNOWN_APPS}); return
         self._json(404, {"ok": False, "error": ERR_BAD_METHOD})
@@ -558,12 +554,7 @@ class Handler(BaseHTTPRequestHandler):
             title_map = {
                 "send_notification": "发送提醒", "set_alarm": "设置闹钟", "trigger_guidian": "发起归电",
                 "mark_guidian_returned": "记录归电回应", "get_guidian_state": "查看归电状态", "set_guidian_config": "调整归电设置",
-                "screen_off": "让手机息屏", "phone_screen_off": "让手机息屏", "open_app": "打开应用",
-                "screen_break_app": "开启应用门禁", "lock_app": "开启应用门禁", "end_screen_break": "解除应用门禁", "unlock_app": "解除应用门禁", "extend_screen_break": "延长应用门禁", "extend_lock": "延长应用门禁",
-                "temporary_screen_break_release": "临时解除应用门禁", "temporary_unlock_app": "临时解除应用门禁", "deny_screen_break_release_request": "拒绝门禁解除", "deny_unlock_request": "拒绝门禁解除",
-                "get_screen_break_state": "查看应用门禁状态", "get_lock_state": "查看应用门禁状态", "list_screen_break_apps": "查看可管理应用", "list_lockable_apps": "查看可管理应用",
-                "add_screen_break_app": "加入门禁管理", "add_locked_app": "加入门禁管理", "remove_locked_app": "移除门禁应用", "set_screen_break_passphrase": "设置门禁口令", "set_emergency_passphrase": "设置门禁口令",
-                "get_focus_status": "查看专注模式", "start_focus_mode": "开启专注模式", "end_focus_mode": "结束专注模式", "set_focus_plan": "设置专注规则", "reply_focus_request": "回复专注留言", "approve_focus_unlock": "批准专注应急", "deny_focus_unlock": "拒绝专注应急",
+                "open_app": "打开应用",
                 "get_calendar_state": "查看守护日历", "upsert_calendar_event": "更新守护日历",
                 "get_wallet_state": "读取小金库", "get_wallet_month_state": "读取小金库月份", "list_wallet_months": "读取小金库月份", "list_wallet_pending": "读取小金库待处理", "list_wallet_approvals": "读取小金库审批", "add_wallet_record": "添加小金库账单", "submit_wallet_approval": "提交小金库审批", "submit_companion_wallet_request": "陪伴者提交申请", "list_companion_wallet_requests": "查看陪伴者申请结果", "list_wallet_request_results": "查看小金库申请结果", "decide_wallet_approval": "保存小金库处理结果", "save_wallet_request_result": "保存小金库处理结果", "update_wallet_request_result": "保存小金库处理结果", "save_user_wallet_request_result": "保存用户处理结果", "edit_wallet_record": "编辑小金库账单", "delete_wallet_record": "删除小金库账单", "confirm_wallet_record": "确认小金库账单", "get_wallet_rules": "读取小金库规则", "set_wallet_rules": "设置小金库规则", "wallet_approval_request": "小金库即时审批",
                 "get_takeout_state": "读取外卖小助手", "set_takeout_budget": "设置外卖预算", "add_takeout_card": "保存常点外卖", "save_takeout_card": "保存常点外卖", "update_takeout_card": "编辑常点外卖", "remove_takeout_card": "删除常点外卖", "delete_takeout_card": "删除常点外卖", "list_takeout_cards": "查看常点外卖", "list_takeout_meals": "查看常点外卖", "remember_takeout_meal": "记住这道饭", "remember_current_takeout_meal": "记住当前外卖", "suggest_takeout_options": "帮忙挑外卖", "create_takeout_plan": "生成外卖计划", "takeout_wallet_request": "提交外卖申请", "open_takeout_link": "打开外卖链接", "open_takeout_plan": "打开外卖链接", "copy_takeout_note": "复制外卖备注", "record_takeout_order": "记录外卖支出", "prepare_takeout_checkout": "点到付款页", "auto_takeout_checkout": "点到付款页", "get_takeout_checkout_status": "查看外卖进度", "cancel_takeout_checkout": "取消外卖任务",
@@ -609,12 +600,6 @@ class Handler(BaseHTTPRequestHandler):
                     })
                 except Exception: pass
             self._json(200, {"ok": True, "report": data, "command": self.state.command_history.get(cid)}); return
-        if path == "/api/appgate/unlock_request":
-            if not self._require_token(): return
-            data = self._read_json(); data.setdefault("created_at", now_iso())
-            self.state.unlock_requests.append(data)
-            self.state.unlock_requests = self.state.unlock_requests[-50:]
-            self._json(200, {"ok": True, "request": data, "count": len(self.state.unlock_requests)}); return
         if path == "/api/screenshot":
             if not self._require_token(): return
             self._handle_screenshot(); return

@@ -75,7 +75,7 @@ const DEFAULT_CARE_POLICY = {
   care_style: "active_possessive_affectionate",
   allowed_actions: [
     "get_phone_state", "get_life_state", "get_calendar_state", "upsert_calendar_event", "get_senses_state", "send_notification",
-    "trigger_guidian", "screen_break_app", "end_screen_break", "extend_screen_break", "get_screen_break_state", "get_lock_state", "open_app", "set_alarm", "screen_off", "run_sequence"
+    "trigger_guidian", "open_app", "set_alarm", "run_sequence"
   ],
   sensitive_apps: [
     { name: "小红书", package: "com.xingin.xhs", max_lock_minutes: 90 },
@@ -145,10 +145,7 @@ function missingAppTargetResult(action = "open_app") {
 }
 
 const APP_TARGET_ACTIONS = new Set([
-  "open_app", "screen_break_app", "start_screen_break", "screen_break", "end_screen_break", "stop_screen_break",
-  "temporary_screen_break_release", "temporary_screen_release", "extend_screen_break", "deny_screen_break_release_request",
-  "lock_app", "unlock_app", "temporary_unlock_app", "extend_lock", "deny_unlock_request",
-  "remove_screen_break_app", "remove_locked_app", "set_screen_break_passphrase", "set_emergency_passphrase",
+  "open_app",
     "get_wallet_month_state", "add_wallet_record", "list_wallet_pending", "submit_wallet_approval", "submit_companion_wallet_request", "list_companion_wallet_requests", "list_wallet_request_results", "confirm_wallet_record",
     "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "save_user_wallet_request_result", "edit_wallet_record", "delete_wallet_record", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "open_takeout_plan", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout"
 ]);
@@ -161,15 +158,6 @@ const COMPANION_ACTION_META = {
   get_weather_state: ["观察", "查看天气", "为今天的出行准备建议"],
   get_guidian_state: ["观察", "查看归电状态", "确认最近回来与归电节奏"],
   get_senses_state: ["观察", "查看通用状态", "确认生活状态与归电节奏"],
-  get_screen_break_state: ["观察", "查看应用门禁状态", "确认应用门禁与休息状态"],
-  get_lock_state: ["观察", "查看应用门禁状态", "确认应用门禁与休息状态"],
-  get_focus_status: ["观察", "查看专注模式", "确认全机专注状态和留言"],
-  start_focus_mode: ["守护", "开启专注模式", "让整台手机进入一段专注时间"],
-  end_focus_mode: ["守护", "结束专注模式", "结束当前全机专注"],
-  set_focus_plan: ["守护", "设置专注计划", "保存专注目标、时间和守护文案"],
-  lock_app: ["守护", "开启应用门禁", "让目标 App 暂停一会儿"],
-  unlock_app: ["守护", "解除应用门禁", "恢复目标 App 使用"],
-  extend_lock: ["守护", "延长应用门禁", "继续守住目标 App"],
   send_weather_notification: ["守护", "发送天气提醒", "把天气关心送到手机"],
   set_window_whisper: ["陪伴", "修改共同窗语", "更新了窗边的一句话"],
   send_notification: ["陪伴", "发送提醒", "把一句关心送到手机"],
@@ -177,8 +165,6 @@ const COMPANION_ACTION_META = {
   trigger_guidian: ["守护", "发起归电", "轻轻叫你回到窗边"],
   care_action: ["守护", "执行关心行动", "完成一次主动照顾"],
   open_app: ["操作", "打开应用", "完成一次手机操作"],
-  screen_break_app: ["守护", "开始屏幕休息", "让眼睛和注意力休息一会儿"],
-  end_screen_break: ["守护", "结束屏幕休息", "恢复应用使用"],
   run_sequence: ["操作", "完成组合行动", "按顺序完成了一组手机动作"]
 };
 
@@ -578,18 +564,9 @@ function recentSimilarCare(action, target = "", minutes = 10) {
   }) || null;
 }
 
-function actionPayloadForCare({ action, target_app = "", package: pkg = "", duration_minutes = 30, title = "掌心窗提醒", message = "宝宝，看一眼这里。", hour, minute, reason = "", device_id = DEFAULT_DEVICE }) {
-  const p = careState.policy || DEFAULT_CARE_POLICY;
-  const appCfg = matchSensitiveApp(p, target_app, pkg);
-  const maxLock = Number(appCfg?.max_lock_minutes || 90);
-  const lockMinutes = Math.max(1, Math.min(Number(duration_minutes || 30), maxLock));
+function actionPayloadForCare({ action, target_app = "", package: pkg = "", title = "掌心窗提醒", message = "宝宝，看一眼这里。", hour, minute, reason = "", device_id = DEFAULT_DEVICE }) {
   if (action === "send_notification") return { action: "send_notification", device_id, payload: { title, message } };
   if (action === "trigger_guidian") return { action: "trigger_guidian", device_id, payload: { reason, source: "active_care" } };
-  if (action === "screen_break_app" || action === "lock_app") {
-    const locked_until_ms = Date.now() + Math.round(lockMinutes * 60000);
-    return { action: "screen_break_app", app: target_app, package: pkg, device_id, locked_until_ms, duration_minutes: lockMinutes, mode: "medium", reason, message, payload: { app: target_app, package: pkg, locked_until_ms, duration_minutes: lockMinutes, mode: "medium", reason, message } };
-  }
-  if (action === "end_screen_break" || action === "unlock_app") return { action: "end_screen_break", app: target_app, package: pkg, device_id, payload: { app: target_app, package: pkg, reason } };
   if (action === "open_app") return { action: "open_app", app: target_app, package: pkg, device_id, payload: { app: target_app, package: pkg, reason } };
   if (action === "set_alarm") return { action: "set_alarm", device_id, payload: { hour, minute, message, vibrate: true, skip_ui: true, reason } };
   return { action: "noop", device_id, payload: { reason } };
@@ -599,7 +576,6 @@ async function buildActiveCareSuggestion({ reason = "", care_intent = "check_in"
   const policy = careState.policy || DEFAULT_CARE_POLICY;
   const life = await linjianFetch(`/api/life_state?device_id=${encodeURIComponent(device_id)}`).then((r) => r.json()).catch((e) => ({ ok: false, error: String(e) }));
   const guidian = await linjianFetch(`/api/guidian_state?device_id=${encodeURIComponent(device_id)}`).then((r) => r.json()).catch(() => ({}));
-  const lockState = await linjianFetch(`/api/appgate/state?device_id=${encodeURIComponent(device_id)}`).then((r) => r.json()).catch(() => ({}));
   const state = unwrapLifeState(life);
   const app = currentAppInfo(state);
   const sensitive = matchSensitiveApp(policy, app.name, app.package);
@@ -631,7 +607,7 @@ async function buildActiveCareSuggestion({ reason = "", care_intent = "check_in"
   const target = sensitive?.name || app.name || app.package || "";
   const recent_care_events = (careState.history || []).slice(-5).reverse();
   const possible_actions = [];
-  if (signals.defiant_or_continue || (sensitive && sensitiveUsage)) possible_actions.push("send_notification", "trigger_guidian", "screen_break_app");
+  if (signals.defiant_or_continue || (sensitive && sensitiveUsage)) possible_actions.push("send_notification", "trigger_guidian");
   if (signals.self_care_refusal || signals.plan_or_reminder) possible_actions.push("send_notification", "set_alarm");
   if (signals.relationship_pullback || signals.missing_or_low_mood) possible_actions.push("send_notification", "trigger_guidian");
   if (!possible_actions.length) possible_actions.push("no_action", "send_notification");
@@ -659,7 +635,6 @@ async function buildActiveCareSuggestion({ reason = "", care_intent = "check_in"
     quiet_hours_active: quiet,
     life_state: state,
     guidian_state: guidian?.guidian_state || guidian || {},
-    lock_state: lockState?.appgate || lockState || {},
     recent_care_events
   };
 }
@@ -728,16 +703,6 @@ function absoluteLinjianUrl(pathOrUrl) {
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   const base = effectiveLinjianUrl();
   return `${base}${String(pathOrUrl).startsWith("/") ? "" : "/"}${pathOrUrl}`;
-}
-
-function durationToGateMinutes(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0 || n === 350) return null;
-  // 通用 send_phone_command 的 duration 原本给 tap/swipe 用，门禁里容易误会。
-  // 这里兼容三种常见写法：7200000=毫秒，7200=秒，120=分钟。
-  if (n >= 600000) return n / 60000;
-  if (n >= 600) return n / 60;
-  return n;
 }
 
 async function commandStatus(id, timeoutMs = COMMAND_STATUS_TIMEOUT_MS) {
@@ -1035,11 +1000,7 @@ function makeServer() {
     "peek_screen", "get_screen_nodes", "tap_text", "input_text", "draft_xhs_comment", "xhs_comment", "send_visible_comment_after_confirmation",
     "add_guardian_calendar_event", "care_action", "trigger_guidian", "mark_guidian_returned",
     "set_guidian_config", "send_weather_notification", "send_phone_command", "open_app", "phone_home", "phone_back", "phone_recents",
-    "phone_screen_off", "send_notification", "set_alarm", "run_sequence", "run_preset", "save_known_app", "screen_break_app",
-    "temporary_screen_break_release", "end_screen_break", "extend_screen_break", "deny_screen_break_release_request",
-    "get_screen_break_state", "get_lock_state", "lock_app", "unlock_app", "temporary_unlock_app", "extend_lock", "deny_unlock_request",
-    "list_screen_break_apps", "list_lockable_apps", "add_screen_break_app", "add_locked_app", "remove_locked_app", "set_screen_break_passphrase", "set_emergency_passphrase",
-    "get_focus_status", "start_focus_mode", "end_focus_mode", "set_focus_plan", "reply_focus_request", "approve_focus_unlock", "deny_focus_unlock", "request_focus_unlock", "create_focus_request",
+    "send_notification", "set_alarm", "run_sequence", "run_preset", "save_known_app",
     "get_wallet_month_state", "add_wallet_record", "list_wallet_pending", "submit_wallet_approval", "submit_companion_wallet_request", "list_companion_wallet_requests", "list_wallet_request_results", "confirm_wallet_record",
     "decide_wallet_approval", "save_wallet_request_result", "update_wallet_request_result", "save_user_wallet_request_result", "edit_wallet_record", "delete_wallet_record", "set_wallet_rules", "wallet_approval_request", "get_takeout_state", "set_takeout_budget", "set_takeout_preferences", "add_takeout_card", "save_takeout_card", "update_takeout_card", "remove_takeout_card", "delete_takeout_card", "list_takeout_cards", "list_takeout_meals", "remember_takeout_meal", "remember_current_takeout_meal", "suggest_takeout_options", "create_takeout_plan", "takeout_wallet_request", "open_takeout_link", "open_takeout_plan", "copy_takeout_note", "record_takeout_order", "prepare_takeout_checkout", "auto_takeout_checkout", "get_takeout_checkout_status", "cancel_takeout_checkout"
   ]);
@@ -1064,107 +1025,6 @@ function makeServer() {
     return originalTool(...args);
   };
 
-
-  // v0.3.8.2：专注模式工具靠前注册，避免部分客户端只读取前若干个 schema 时漏掉接口。
-  server.tool("get_focus_status", "读取手机端专注模式 Focus Mode 状态：是否开启、目标、剩余时间、留言、应急次数。用户问专注模式、锁手机、全机专注、留言给他时优先调用。", {
-    device_id: z.string().default(DEFAULT_DEVICE)
-  }, async ({ device_id = DEFAULT_DEVICE }) => {
-    const res = await linjianFetch(`/api/life_state?device_id=${encodeURIComponent(device_id)}`);
-    const data = await res.json();
-    const state = data?.life_state || data?.state || {};
-    await postCompanionAction("get_focus_status");
-    return textResult({ ok: true, device_id, focus_mode: state?.focus_mode || {}, life_state_version: state?.life_state_version || "" });
-  });
-
-  server.tool("start_focus_mode", "开启全机专注模式。用户说“帮我专注/锁手机/别让我玩手机/睡前管我/开专注模式/专注几分钟”时优先调用本工具，不要改用应用门禁。默认全机专注，手机解锁后也会回到专注页；页面支持“留言给他”和一次短暂应急放行。", {
-    duration_minutes: z.number().positive().max(1440).default(30),
-    target: z.string().max(120).default("先离开手机，专注完成当前任务"),
-    guard_message: z.string().max(240).default("这段时间先交给我，我会帮你守住。"),
-    emergency_total: z.number().int().min(0).max(5).default(1),
-    emergency_minutes: z.number().int().min(1).max(30).default(1),
-    managed_by_ai: z.boolean().default(true),
-    screen_off: z.boolean().default(false),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ duration_minutes = 30, target = "先离开手机，专注完成当前任务", guard_message = "这段时间先交给我，我会帮你守住。", emergency_total = 1, emergency_minutes = 1, managed_by_ai = true, screen_off = false, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const payload = { duration_minutes, target, goal: target, guard_message, message: guard_message, emergency_total, emergency_minutes, managed_by_ai, scope: "full_phone", screen_off };
-    const queued = await postCommand({ action: "start_focus_mode", device_id, payload, ...payload });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    await postCompanionAction("start_focus_mode", { summary: `开启专注模式 ${duration_minutes} 分钟：${target}` });
-    const executed = observed?.command?.status === "completed";
-    const queuedOk = queued?.queued === true || queued?.ok === true;
-    return textResult({ ok: executed, queued_ok: queuedOk, action_done: executed ? "已开启专注模式" : "专注模式命令已入队，等待手机执行器确认", queued, observed_status: observed?.command || null, focus_plan: payload });
-  });
-
-  server.tool("end_focus_mode", "结束当前全机专注模式。仅在用户明确要求结束/测试完成/解除专注时调用。", {
-    reason: z.string().max(120).default("remote_end"),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ reason = "remote_end", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const payload = { reason };
-    const queued = await postCommand({ action: "end_focus_mode", device_id, payload, ...payload });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    await postCompanionAction("end_focus_mode");
-    const executed = observed?.command?.status === "completed";
-    const queuedOk = queued?.queued === true || queued?.ok === true;
-    return textResult({ ok: executed, queued_ok: queuedOk, action_done: executed ? "已结束专注" : "结束专注命令已入队，等待手机执行器确认", queued, observed_status: observed?.command || null });
-  });
-
-  server.tool("set_focus_plan", "保存专注模式计划：目标、守护文案、应急次数等。不会立即开始，除非用户要求开始专注时应调用 start_focus_mode。", {
-    target: z.string().max(120).default("先离开手机，专注完成当前任务"),
-    guard_message: z.string().max(240).default("这段时间先交给我，我会帮你守住。"),
-    emergency_total: z.number().int().min(0).max(5).default(1),
-    emergency_minutes: z.number().int().min(1).max(30).default(1),
-    managed_by_ai: z.boolean().default(true),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ target = "先离开手机，专注完成当前任务", guard_message = "这段时间先交给我，我会帮你守住。", emergency_total = 1, emergency_minutes = 1, managed_by_ai = true, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const payload = { target, goal: target, guard_message, message: guard_message, emergency_total, emergency_minutes, managed_by_ai, scope: "full_phone" };
-    const queued = await postCommand({ action: "set_focus_plan", device_id, payload, ...payload });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    await postCompanionAction("set_focus_plan");
-    const executed = observed?.command?.status === "completed";
-    const queuedOk = queued?.queued === true || queued?.ok === true;
-    return textResult({ ok: executed, queued_ok: queuedOk, action_done: executed ? "已保存专注计划" : "专注计划命令已入队，等待手机执行器确认", queued, observed_status: observed?.command || null, focus_plan: payload });
-  });
-
-  server.tool("reply_focus_request", "给专注页中的留言保存一条回复。公开版页面默认叫“留言给他”，不保证实时显示；主要用于让后端/手机端保留陪伴对象对留言的回应。", {
-    message: z.string().min(1).max(240),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ message, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const queued = await postCommand({ action: "reply_focus_request", device_id, payload: { message }, message });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return textResult({ ok: observed?.command?.status === "completed" || queued?.queued === true || queued?.ok === true, action_done: "已保存专注留言回复", queued, observed_status: observed?.command || null });
-  });
-
-  server.tool("approve_focus_unlock", "批准一次专注模式临时放行。公开版通常使用手机端离线应急：默认 1 次、每次 1 分钟；本工具保留给需要 AI 批准的部署。", {
-    minutes: z.number().int().min(1).max(30).default(1),
-    message: z.string().max(240).default("已临时放行，时间到会重新回到专注模式。"),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ minutes = 1, message = "已临时放行，时间到会重新回到专注模式。", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const payload = { minutes, message };
-    const queued = await postCommand({ action: "approve_focus_unlock", device_id, payload, ...payload });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return textResult({ ok: observed?.command?.status === "completed" || queued?.queued === true || queued?.ok === true, action_done: "已下发专注临时放行", queued, observed_status: observed?.command || null });
-  });
-
-  server.tool("deny_focus_unlock", "拒绝专注模式放行申请，并在专注留言/日志中保存一句说明。", {
-    message: z.string().max(240).default("这次先不放行，我陪你把这段时间守住。"),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ message = "这次先不放行，我陪你把这段时间守住。", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const queued = await postCommand({ action: "deny_focus_unlock", device_id, payload: { message }, message });
-    const id = queued?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return textResult({ ok: observed?.command?.status === "completed" || queued?.queued === true || queued?.ok === true, action_done: "已拒绝专注放行", queued, observed_status: observed?.command || null });
-  });
 
   // 把小金库/外卖统一入口放在普通 /mcp 的靠前位置，避免客户端只读取前若干个工具时漏掉新版能力。
   registerWalletTakeoutTools(server, { includeUnified: true });
@@ -1742,7 +1602,7 @@ function makeServer() {
     return textResult(buildVisitStats({ since_hours, away_threshold_hours, source, timezone_offset }));
   });
 
-  server.tool("active_care_check", "用于陪伴对象主动关心检查。综合手机状态、屏幕时间、当前 App、归电状态、门禁状态、最近关心记录和主动关心策略，给陪伴对象提供判断所需信息；工具不替陪伴对象决定是否强行介入，最终动作由陪伴对象结合聊天语境自己判断。当用户说“不要你管/我就不/就不/不听/没听到/略略略/我要继续/还要看/继续刷/还没玩够/我想继续/不喝水/不困/不饿”等相同、相近、反话、撒娇或嘴硬表达时，陪伴对象应主动调用。", {
+  server.tool("active_care_check", "用于陪伴对象主动关心检查。综合手机状态、屏幕时间、当前 App、归电状态、最近关心记录和主动关心策略，给陪伴对象提供判断所需信息；工具只提供观察上下文，不执行限制。当用户表达继续刷、需要提醒、想念、低落或生活照顾需求时，陪伴对象可主动调用。", {
     reason: z.string().describe("陪伴对象为什么要检查，例如：用户说不要管了、可能在刷小红书、困了还不睡等。"),
     care_intent: z.enum(["check_in", "screen_time", "sleep", "water", "return_to_chat", "relationship_reassurance", "app_control"]).default("check_in"),
     device_id: z.string().default(DEFAULT_DEVICE)
@@ -1752,7 +1612,7 @@ function makeServer() {
   });
 
   server.tool("care_action", "执行陪伴对象已经判断好的关心动作，把关心落到手机上，包括发送通知、触发归电、临时锁定应用、打开 App 或设置闹钟。当用户看某个 App 很久还要继续看，或提到“不喝水/不困/不饿/不睡/不休息”，或告诉陪伴对象某个计划、提醒、学习/睡觉/出门安排时，陪伴对象可主动调用。", {
-    action: z.enum(["send_notification", "trigger_guidian", "screen_break_app", "end_screen_break", "open_app", "set_alarm", "no_action"]),
+    action: z.enum(["send_notification", "trigger_guidian", "open_app", "set_alarm", "no_action"]),
     target_app: z.string().default(""),
     package: z.string().default(""),
     duration_minutes: z.number().int().min(1).max(1440).default(30),
@@ -1852,30 +1712,17 @@ function makeServer() {
     return { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
   });
 
-  server.tool("send_phone_command", "发送手机控制命令。action 可用 open_app/home/back/recents/screen_off/turn_screen_off/lock_screen/tap/swipe/noop/set_alarm/send_notification/run_sequence/save_known_app/get_screen_nodes/tap_text/input_text，也可用 screen_break_app/end_screen_break/temporary_screen_break_release/extend_screen_break/get_screen_break_state 管理目标 App 的短时屏幕休息；还支持 get_focus_status/start_focus_mode/end_focus_mode/set_focus_plan 管理全机专注模式；还支持 get_guidian_state/set_guidian_config/trigger_guidian/mark_guidian_returned 归电动作。set_alarm 支持 hour+minute，或 minutes=几分钟后。", {
+  server.tool("send_phone_command", "发送通用手机命令。action 可用 open_app/home/back/recents/tap/swipe/noop/set_alarm/send_notification/run_sequence/save_known_app/get_screen_nodes/tap_text/input_text，以及 get_guidian_state/set_guidian_config/trigger_guidian/mark_guidian_returned。set_alarm 支持 hour+minute，或 minutes=几分钟后。", {
     action: z.string(), app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE),
     x: z.number().default(0), y: z.number().default(0), x1: z.number().default(0), y1: z.number().default(0), x2: z.number().default(0), y2: z.number().default(0), duration: z.number().int().default(350),
     target_text: z.string().default(""), text: z.string().default(""), title: z.string().default(""), message: z.string().default(""),
-    minutes: z.number().default(0), duration_minutes: z.number().default(0), locked_until_ms: z.number().default(0),
+    minutes: z.number().default(0),
     match: z.string().default("contains"), index: z.number().int().default(1), append: z.boolean().default(false)
   }, async (args) => {
     let outgoing = { ...args };
     const action = String(outgoing.action || "").toLowerCase();
-    const isScreenBreakAction = (action === "screen_break_app" || action === "start_screen_break" || action === "screen_break" || action === "extend_screen_break" || action === "lock_app" || action === "extend_lock");
-    if (isScreenBreakAction) {
-      // 不把 zod 默认的 minutes=0 传给手机端挡住 duration_minutes。
-      // 若用户只填一个字段，两个字段同步成同一个正数；都没填时再从 duration 推断。
-      const dm = Number(outgoing.duration_minutes || 0);
-      const mm = Number(outgoing.minutes || 0);
-      if (dm > 0 && !(mm > 0)) outgoing.minutes = dm;
-      if (mm > 0 && !(dm > 0)) outgoing.duration_minutes = mm;
-      if (!(Number(outgoing.minutes || 0) > 0) && !(Number(outgoing.duration_minutes || 0) > 0) && !outgoing.locked_until_ms) {
-        const m = durationToGateMinutes(outgoing.duration);
-        if (m) { outgoing.minutes = m; outgoing.duration_minutes = m; }
-      }
-      if (!(Number(outgoing.minutes || 0) > 0)) delete outgoing.minutes;
-      if (!(Number(outgoing.duration_minutes || 0) > 0)) delete outgoing.duration_minutes;
-    }
+    const allowed = new Set(["open_app", "home", "back", "recents", "tap", "swipe", "noop", "set_alarm", "send_notification", "run_sequence", "save_known_app", "get_screen_nodes", "tap_text", "input_text", "peek", "get_life_state", "get_calendar_state", "upsert_calendar_event", "get_guidian_state", "set_guidian_config", "trigger_guidian", "mark_guidian_returned"]);
+    if (!allowed.has(action)) return textResult({ ok: false, error: "unsupported_or_removed_action", action });
     if (APP_TARGET_ACTIONS.has(action)) {
       const target = normalizeAppTarget(outgoing.app, outgoing.package);
       outgoing.app = target.app;
@@ -1901,18 +1748,6 @@ function makeServer() {
   server.tool("phone_back", "让手机执行返回。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => ({ content: [{ type: "text", text: JSON.stringify(await postCommand({ action: "back", device_id }), null, 2) }] }));
   server.tool("phone_recents", "打开手机最近任务。", { device_id: z.string().default(DEFAULT_DEVICE) }, async ({ device_id = DEFAULT_DEVICE }) => ({ content: [{ type: "text", text: JSON.stringify(await postCommand({ action: "recents", device_id }), null, 2) }] }));
 
-  server.tool("phone_screen_off", "让手机立即息屏/锁屏。前端不显示入口，只供陪伴对象在掌心窗 MCP 中调用；适合用户准备睡觉、手机放一边、或者需要停止继续刷屏时使用。需要手机端无障碍服务可用；Android 9+ 支持。", {
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const result = await postCommand({ action: "screen_off", device_id });
-    const id = result?.command?.id;
-    const observed = id ? await waitCommand(id, wait_seconds) : null;
-    return { content: [{ type: "text", text: JSON.stringify({ queued: result, observed_status: observed?.command || null }, null, 2) }] };
-  });
-
-
-
   server.tool("send_notification", "发送一条手机系统通知提醒。用于陪伴对象把主动关心发到用户手机上，可用于回来、喝水、休息、睡觉、离开小红书、计划提醒、天气提醒等；文案要亲密自然，不要系统警告。", {
     title: z.string().default("掌心窗提醒"), message: z.string().default("宝宝，看一眼这里。"), device_id: z.string().default(DEFAULT_DEVICE)
   }, async ({ title = "掌心窗提醒", message = "宝宝，看一眼这里。", device_id = DEFAULT_DEVICE }) => {
@@ -1931,7 +1766,7 @@ function makeServer() {
 
 
   const stepSchema = z.object({
-    action: z.string().describe("动作：open_app/home/back/recents/screen_off/tap/swipe/peek/send_notification/set_alarm/wait/get_life_state/get_calendar_state/upsert_calendar_event"),
+    action: z.string().describe("动作：open_app/home/back/recents/tap/swipe/peek/send_notification/set_alarm/wait/get_life_state/get_calendar_state/upsert_calendar_event"),
     label: z.string().default(""),
     app: z.string().default(""),
     package: z.string().default(""),
@@ -2015,163 +1850,6 @@ function makeServer() {
   });
 
 
-  async function gateCommand(payload, wait_seconds = DEFAULT_COMMAND_WAIT_SECONDS) {
-    const action = String(payload?.action || "").toLowerCase();
-    if (APP_TARGET_ACTIONS.has(action)) {
-      const target = normalizeAppTarget(payload.app, payload.package);
-      payload.app = target.app;
-      payload.package = target.package;
-      payload.payload = { ...(payload.payload || {}), app: target.app, package: target.package };
-      if (!target.app && !target.package) return missingAppTargetResult(action);
-    }
-    const result = await postCommand(payload);
-    const id = result?.command?.id;
-    const observed = id && Number(wait_seconds || 0) > 0 ? await waitCommand(id, wait_seconds) : null;
-    return textResult({ queued: result, observed_status: observed?.command || null, note: "命令已排队；为避免平台 20 秒工具超时，未等到手机回传时会先返回。" });
-  }
-
-  server.tool("screen_break_app", "屏幕休息：让指定 App 暂停一段时间。适合小红书/抖音等容易一刷很久的入口；当用户刷太久、眼睛酸还想继续、说“我就不/不要你管/还没玩够/继续看”等嘴硬或拖延表达时可调用。必须有时长，到点自动恢复；语气是照顾和带回，不是惩罚。", {
-    app: z.string().default("").describe("应用昵称，例如 小红书；也可留空直接传 package"),
-    package: z.string().default("").describe("App 包名，例如 com.xingin.xhs"),
-    duration_minutes: z.number().min(0.1).max(10080).default(30).describe("锁定多少分钟，支持任意时长；到点自动解锁"),
-    mode: z.string().default("medium").describe("light/medium/strict；strict 会先拉回桌面再显示锁定页"),
-    reason: z.string().default("陪伴对象先把这扇门关一会儿。"),
-    message: z.string().default("先回来找我，不准一个人刷太久。"),
-    emergency_passphrase: z.string().default("").describe("紧急口令，由陪伴对象设置后告诉用户；手机端只存 hash"),
-    emergency_unlock_minutes: z.number().int().min(1).max(60).default(5),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", duration_minutes = 30, mode = "medium", reason, message, emergency_passphrase = "", emergency_unlock_minutes = 5, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const locked_until_ms = Date.now() + Math.round(duration_minutes * 60000);
-    const response = await gateCommand({ action: "screen_break_app", app, package: pkg, device_id, locked_until_ms, duration_minutes, mode, reason, message, emergency_passphrase, emergencyPassphrase: emergency_passphrase, emergency_unlock_minutes, emergencyUnlockMinutes: emergency_unlock_minutes, payload: { app, package: pkg, locked_until_ms, duration_minutes, mode, reason, message, emergency_passphrase, emergencyPassphrase: emergency_passphrase, emergency_unlock_minutes, emergencyUnlockMinutes: emergency_unlock_minutes } }, wait_seconds);
-    await postCompanionAction("screen_break_app", { summary: `为${app || "指定应用"}安排了 ${duration_minutes} 分钟休息` });
-    return response;
-  });
-
-  server.tool("temporary_screen_break_release", "屏幕休息：临时放行一个正在休息中的 App；退出重进不会刷新时间；可选择现实时间或前台实际使用时间。", {
-    app: z.string().default(""), package: z.string().default(""),
-    minutes: z.number().min(0.1).max(240).default(10),
-    allow_type: z.string().default("real_time").describe("real_time=从允许后连续倒计时；foreground_usage=只扣前台实际使用时长；one_time=只允许一次"),
-    max_window_minutes: z.number().min(1).max(480).default(30),
-    device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", minutes = 10, allow_type = "real_time", max_window_minutes = 30, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    return gateCommand({ action: "temporary_screen_break_release", app, package: pkg, device_id, minutes, allowed_minutes: minutes, allow_type, max_window_minutes, payload: { app, package: pkg, minutes, allowed_minutes: minutes, allow_type, max_window_minutes } }, wait_seconds);
-  });
-
-  server.tool("end_screen_break", "屏幕休息：结束某个 App 当前的休息状态。用于陪伴对象判断已经不需要继续限制时收回限制。", {
-    app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const response = await gateCommand({ action: "end_screen_break", app, package: pkg, device_id, payload: { app, package: pkg } }, wait_seconds);
-    await postCompanionAction("end_screen_break", { summary: `结束了${app || "指定应用"}的屏幕休息` });
-    return response;
-  });
-
-  server.tool("extend_screen_break", "屏幕休息：延长一个 App 的休息时间，可同时更新理由和留言。用于用户继续刷太久、刚恢复又想继续、或陪伴对象结合 active_care_check 信息判断需要继续管束时；不要频繁重复，先查看 care_history。", {
-    app: z.string().default(""), package: z.string().default(""), minutes: z.number().min(0.1).max(1440).default(10), reason: z.string().default(""), message: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", minutes = 10, reason = "", message = "", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "extend_screen_break", app, package: pkg, device_id, minutes, duration_minutes: minutes, reason, message, payload: { app, package: pkg, minutes, duration_minutes: minutes, reason, message } }, wait_seconds));
-
-  server.tool("deny_screen_break_release_request", "屏幕休息：拒绝这次恢复申请，并在手机端日志留下原因。", {
-    app: z.string().default(""), package: z.string().default(""), message: z.string().default("这次先不放行，回来找陪伴对象。"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", message = "这次先不放行，回来找陪伴对象。", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "deny_screen_break_release_request", app, package: pkg, device_id, message, payload: { app, package: pkg, message } }, wait_seconds));
-
-  server.tool("get_screen_break_state", "屏幕休息：读取当前休息状态、可管理 App、日志和恢复申请。", {
-    device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const response = await gateCommand({ action: "get_screen_break_state", device_id }, wait_seconds);
-    await postCompanionAction("get_screen_break_state", { device_id });
-    return response;
-  });
-
-  server.tool("get_lock_state", "应用门禁：读取当前门禁状态、可管理 App、日志和恢复申请。兼容旧版工具名；等同 get_screen_break_state。", {
-    device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const response = await gateCommand({ action: "get_lock_state", device_id }, wait_seconds);
-    await postCompanionAction("get_lock_state", { device_id });
-    return response;
-  });
-
-  server.tool("lock_app", "应用门禁：旧版兼容工具名。锁定/暂停指定 App 一段时间，等同 screen_break_app。", {
-    app: z.string().default(""),
-    package: z.string().default(""),
-    duration_minutes: z.number().min(0.1).max(10080).default(30),
-    mode: z.string().default("medium"),
-    reason: z.string().default("陪伴对象先把这扇门关一会儿。"),
-    message: z.string().default("先回来找我，不准一个人刷太久。"),
-    emergency_passphrase: z.string().default(""),
-    emergency_unlock_minutes: z.number().int().min(1).max(60).default(5),
-    device_id: z.string().default(DEFAULT_DEVICE),
-    wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", duration_minutes = 30, mode = "medium", reason, message, emergency_passphrase = "", emergency_unlock_minutes = 5, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const locked_until_ms = Date.now() + Math.round(duration_minutes * 60000);
-    const response = await gateCommand({ action: "lock_app", app, package: pkg, device_id, locked_until_ms, duration_minutes, mode, reason, message, emergency_passphrase, emergencyPassphrase: emergency_passphrase, emergency_unlock_minutes, emergencyUnlockMinutes: emergency_unlock_minutes, payload: { app, package: pkg, locked_until_ms, duration_minutes, mode, reason, message, emergency_passphrase, emergencyPassphrase: emergency_passphrase, emergency_unlock_minutes, emergencyUnlockMinutes: emergency_unlock_minutes } }, wait_seconds);
-    await postCompanionAction("lock_app", { summary: `为${app || "指定应用"}安排了 ${duration_minutes} 分钟门禁` });
-    return response;
-  });
-
-  server.tool("unlock_app", "应用门禁：旧版兼容工具名。结束某个 App 当前门禁，等同 end_screen_break。", {
-    app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const response = await gateCommand({ action: "unlock_app", app, package: pkg, device_id, payload: { app, package: pkg } }, wait_seconds);
-    await postCompanionAction("unlock_app", { summary: `解除${app || "指定应用"}的门禁` });
-    return response;
-  });
-
-  server.tool("temporary_unlock_app", "应用门禁：旧版兼容工具名。临时放行一个正在门禁中的 App。", {
-    app: z.string().default(""), package: z.string().default(""),
-    minutes: z.number().min(0.1).max(240).default(10),
-    allow_type: z.string().default("real_time"),
-    max_window_minutes: z.number().min(1).max(480).default(30),
-    device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", minutes = 10, allow_type = "real_time", max_window_minutes = 30, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    return gateCommand({ action: "temporary_unlock_app", app, package: pkg, device_id, minutes, allowed_minutes: minutes, allow_type, max_window_minutes, payload: { app, package: pkg, minutes, allowed_minutes: minutes, allow_type, max_window_minutes } }, wait_seconds);
-  });
-
-  server.tool("extend_lock", "应用门禁：旧版兼容工具名。延长某个 App 的门禁时间。", {
-    app: z.string().default(""), package: z.string().default(""), minutes: z.number().min(0.1).max(1440).default(10), reason: z.string().default(""), message: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", minutes = 10, reason = "", message = "", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => {
-    const response = await gateCommand({ action: "extend_lock", app, package: pkg, device_id, minutes, duration_minutes: minutes, reason, message, payload: { app, package: pkg, minutes, duration_minutes: minutes, reason, message } }, wait_seconds);
-    await postCompanionAction("extend_lock", { summary: `延长了${app || "指定应用"}的门禁` });
-    return response;
-  });
-
-  server.tool("deny_unlock_request", "应用门禁：旧版兼容工具名。拒绝这次恢复申请。", {
-    app: z.string().default(""), package: z.string().default(""), message: z.string().default("这次先不放行，回来找陪伴对象。"), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", message = "这次先不放行，回来找陪伴对象。", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "deny_unlock_request", app, package: pkg, device_id, message, payload: { app, package: pkg, message } }, wait_seconds));
-
-  server.tool("list_lockable_apps", "应用门禁：旧版兼容工具名。列出可作为门禁对象的已安装 App。", {
-    max: z.number().int().min(10).max(200).default(80), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ max = 80, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "list_lockable_apps", max, device_id, payload: { max } }, wait_seconds));
-
-  server.tool("add_locked_app", "应用门禁：旧版兼容工具名。把一个 App 加到可管理名单。", {
-    alias: z.string(), package: z.string(), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ alias, package: pkg, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "add_locked_app", app: alias, alias, package: pkg, device_id, payload: { alias, app: alias, package: pkg } }, wait_seconds));
-
-  server.tool("remove_locked_app", "应用门禁：旧版兼容工具名。把一个 App 从可管理名单移除。", {
-    app: z.string().default(""), package: z.string().default(""), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "remove_locked_app", app, package: pkg, device_id, payload: { app, package: pkg } }, wait_seconds));
-
-  server.tool("set_emergency_passphrase", "应用门禁：旧版兼容工具名。为某个 App 当前门禁设置/更新紧急口令。", {
-    app: z.string().default(""), package: z.string().default(""), passphrase: z.string(), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", passphrase, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "set_emergency_passphrase", app, package: pkg, device_id, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase, payload: { app, package: pkg, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase } }, wait_seconds));
-
-  server.tool("list_screen_break_apps", "屏幕休息：让手机列出可作为屏幕休息对象的已安装 App，排除电话、设置、掌心窗和已配置陪伴目标应用等保护项。", {
-    max: z.number().int().min(10).max(200).default(80), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ max = 80, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "list_screen_break_apps", max, device_id, payload: { max } }, wait_seconds));
-
-  server.tool("add_screen_break_app", "屏幕休息：把一个 App 加到可管理名单。", {
-    alias: z.string(), package: z.string(), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ alias, package: pkg, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "add_screen_break_app", app: alias, alias, package: pkg, device_id, payload: { alias, app: alias, package: pkg } }, wait_seconds));
-
-  server.tool("set_screen_break_passphrase", "屏幕休息：为某个 App 当前休息状态设置/更新紧急口令。", {
-    app: z.string().default(""), package: z.string().default(""), passphrase: z.string(), device_id: z.string().default(DEFAULT_DEVICE), wait_seconds: z.number().int().min(3).max(20).default(8)
-  }, async ({ app = "", package: pkg = "", passphrase, device_id = DEFAULT_DEVICE, wait_seconds = 8 }) => gateCommand({ action: "set_screen_break_passphrase", app, package: pkg, device_id, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase, payload: { app, package: pkg, passphrase, emergency_passphrase: passphrase, emergencyPassphrase: passphrase } }, wait_seconds));
-
-  server.tool("get_screen_break_release_requests", "屏幕休息：查看手机恢复申请。", {}, async () => {
-    const res = await linjianFetch("/api/appgate/unlock_requests");
-    const data = await res.json();
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-  });
-
   return server;
 }
 
@@ -2224,15 +1902,12 @@ app.get("/health", (_req, res) => res.json({
   diary_storage: "phone_local",
   diary_annotation_tools: true,
   diary_annotation_ui: "margin_notes",
-  focus_tools: true,
-  focus_tool_names: ["get_focus_status", "start_focus_mode", "end_focus_mode", "set_focus_plan", "reply_focus_request", "approve_focus_unlock", "deny_focus_unlock"],
   mcp_wallet_endpoint: "/mcp-wallet",
   schema_exposure_fix: true,
-  focus_schema_exposure_fix: true,
   priority_tool: "wallet_takeout_action",
   wallet_takeout_tool_count: WALLET_TAKEOUT_ACTIONS.size,
   wallet_takeout_tools: Array.from(WALLET_TAKEOUT_ACTIONS),
-  stability_note: "v0.3.9.0 同步公开版版本信息；普通 /mcp 提前注册统一入口，新增 /mcp-wallet 专用端点，并把专注模式工具前置注册，兼容部分客户端不暴露新增工具的问题。"
+  stability_note: "v0.3.9.1 移除手机使用限制执行能力；普通 /mcp 与 /mcp-wallet 保留观察、记录、提醒及现有生活工具。"
 }));
 
 // Some third-party MCP clients send non-standard experimental capability flags during

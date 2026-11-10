@@ -143,7 +143,6 @@ public final class CompanionWindowState {
     private static String eventType(String title) {
         String value = title == null ? "" : title;
         if (value.contains("归电") || value.contains("回来")) return "guidian_return";
-        if (value.contains("门禁") || value.contains("休息")) return "screen_break_trigger";
         if (value.contains("窗语")) return "whisper_update";
         return "phone_activity";
     }

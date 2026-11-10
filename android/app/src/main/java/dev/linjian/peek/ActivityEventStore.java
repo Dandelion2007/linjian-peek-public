@@ -100,7 +100,7 @@ public final class ActivityEventStore {
                 if (todayOnly && !today.equals(e.optString("local_date", ""))) continue;
                 String source = e.optString("source", ""), type = e.optString("type", "");
                 boolean matches = phoneCategory
-                        ? ("phone".equals(source) || "app_open".equals(type) || "guidian_return".equals(type) || "screen_break_trigger".equals(type))
+                        ? ("phone".equals(source) || "app_open".equals(type) || "guidian_return".equals(type))
                         : ("companion".equals(source) || "assistant".equals(source) || "command".equals(type) || "notification".equals(type) || "weather".equals(type) || "calendar".equals(type) || "status_check".equals(type));
                 if (matches) out.put(e);
             }

@@ -29,7 +29,6 @@ npx wrangler deploy --config wrangler.toml
 - `/api/latest.json`、`/api/latest`、`/api/screenshot`（截图使用 KV 保存最近一张）
 - `/api/companion/state`、`/api/companion/whisper`、`/api/companion/action`
 - `/api/activity/events`
-- `/api/appgate/unlock_request`、`/api/appgate/unlock_requests`
 
 部署思路：
 1. 创建 D1 数据库，执行 `schema.sql`。
@@ -39,7 +38,6 @@ npx wrangler deploy --config wrangler.toml
 5. `wrangler deploy`。
 6. 在掌心窗设置页填写 Cloudflare 地址，模式选“自动”或“Cloudflare”。
 
-注意：聆音/鲸鸣/声息这类重功能仍建议走 Render；Cloudflare 这版优先保证查状态、发指令、门禁、提醒、截图、守护日历远程命令这一条主线。
 
 
 ## v0.4.2.2 Cloudflare 一体 MCP
@@ -53,7 +51,6 @@ npx wrangler deploy --config wrangler.toml
 本版把 Cloudflare `/mcp` 从 Lite 工具集补成私人版主力工具集，保留声息、聆音、鲸鸣不迁移：
 
 - 新增归电设置：`set_guidian_config`、`mark_guidian_returned`。
-- 新增门禁高级功能：紧急口令、临时放行、恢复申请读取、拒绝申请、可门禁 App 列表、添加门禁 App、设置/更新口令。
 - 新增屏幕节点与精准控制：`get_screen_nodes`、`tap_text`、`input_text`。
 - 新增小红书评论草稿/发送辅助：`draft_xhs_comment`、`xhs_comment`、`send_visible_comment_after_confirmation`。
 - 新增主动关心与到访记录：`get_care_policy`、`set_care_policy`、`active_care_check`、`care_action`、`record_visit`、`get_visit_stats` 等，状态保存在 D1 的 `companion_state` 中。

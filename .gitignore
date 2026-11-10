@@ -19,9 +19,11 @@ yarn-error.log*
 android/.gradle/
 android/app/build/
 android/build/
+android/build-no-gate*/
 android/local.properties
 local.properties
 *.apk
+*.apk.idsig
 *.aab
 
 # Build output

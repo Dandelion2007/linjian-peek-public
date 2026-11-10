@@ -45,7 +45,6 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 - `linjian_status()`：检查 MCP 与后端连接状态，确认 `LINJIAN_URL` 和 `LINJIAN_TOKEN` 是否配置，并返回后端健康信息。
 - `peek_screen(wait_seconds)`：请求手机端截一张新截图，并等待上传后返回图片。
 - `latest_screen()`：不触发手机截图，直接读取服务器最近一张截图。
-- `get_life_state(device_id)`：读取生活状态：电量、充电、网络、当前 App、今日屏幕时间、解锁次数、天气地区、门禁/屏幕休息、归电等。
 - `get_senses_state(device_id)`：读取公开版轻量聚合状态，主要包括生活状态和归电状态。
 - `get_phone_state(device_id)`：读取当前包名、当前 App、无障碍状态和屏幕文字摘要。
 - `get_screen_nodes(device_id, wait_seconds)`：读取当前屏幕无障碍节点，包括文字、控件类型、是否可点击和坐标。
@@ -62,7 +61,6 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 
 - `tap_text(target_text, match, index, device_id, wait_seconds)`：按当前屏幕文字精准点击。
 - `input_text(text, append, device_id, wait_seconds)`：向当前已聚焦或第一个可编辑输入框输入文本。
-- `send_phone_command(...)`：底层通用手机控制命令。可执行打开 App、回桌面、返回、截图、点击、滑动、输入、通知、闹钟、息屏、屏幕休息等动作。
 - `run_sequence(steps, device_id, stop_on_error, wait_seconds)`：一次执行多步动作，适合打开 App、等待、点击、输入、通知、截图等连招。
 - `run_preset(preset, device_id, x, y, wait_seconds)`：执行预设连招，例如回到目标 App、打开小红书、睡前回家等。
 
@@ -72,7 +70,6 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 - `phone_home(device_id)`：回到桌面。
 - `phone_back(device_id)`：执行返回。
 - `phone_recents(device_id)`：打开最近任务。
-- `phone_screen_off(device_id, wait_seconds)`：立即息屏/锁屏，需要手机端无障碍服务可用。
 - `list_known_apps()`：列出预置 App 包名和用户手动保存的包名。
 - `save_known_app(alias, package, device_id, wait_seconds)`：保存应用昵称与包名，之后可用昵称打开或守护。
 
@@ -135,25 +132,11 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 
 - `get_care_policy()`：读取主动关心策略，包括关心开关、风格、允许动作、重点 App、安静时段、冷却时间等。
 - `set_care_policy(active_care_enabled, consent_mode, care_style, allowed_actions, sensitive_apps_json, quiet_start, quiet_end, timezone_offset, repeat_cooldown_minutes, history_limit, notes, policy_json)`：更新主动关心策略。
-- `record_care_event(action, target_app, package, reason, result, tone, device_id)`：记录一次关心动作，避免短时间重复提醒或重复管束。
+- `record_care_event(action, target_app, package, reason, result, tone, device_id)`：记录一次关心动作，避免短时间重复提醒。
 - `get_care_history(limit)`：读取最近主动关心记录。
-- `active_care_check(reason, care_intent, device_id)`：综合手机状态、当前 App、屏幕时间、归电状态、门禁状态和关心策略，给 AI 判断是否需要介入。
-- `care_action(action, target_app, package, duration_minutes, title, message, hour, minute, reason, tone, device_id, wait_seconds)`：执行已经判断好的关心动作，例如发送通知、触发归电、屏幕休息、打开 App、设置闹钟等。
 
-## 门禁与屏幕休息
 
-公开版使用屏幕休息/门禁工具管理指定 App，适合测试自己的手机使用节奏。不要用来管理他人设备。
 
-- `screen_break_app(app, package, duration_minutes, mode, reason, message, emergency_passphrase, emergency_unlock_minutes, device_id, wait_seconds)`：让指定 App 暂停一段时间。
-- `temporary_screen_break_release(app, package, minutes, allow_type, max_window_minutes, device_id, wait_seconds)`：临时放行一个正在休息中的 App。
-- `end_screen_break(app, package, device_id, wait_seconds)`：结束某个 App 当前的休息状态。
-- `extend_screen_break(app, package, minutes, reason, message, device_id, wait_seconds)`：延长某个 App 的休息时间。
-- `deny_screen_break_release_request(app, package, message, device_id, wait_seconds)`：拒绝一次恢复申请。
-- `get_screen_break_state(device_id, wait_seconds)`：读取当前休息状态、可管理 App、日志和恢复申请。
-- `list_screen_break_apps(max, device_id, wait_seconds)`：让手机列出可作为屏幕休息对象的已安装 App。
-- `add_screen_break_app(alias, package, device_id, wait_seconds)`：把一个 App 加到可管理名单。
-- `set_screen_break_passphrase(app, package, passphrase, device_id, wait_seconds)`：为某个 App 当前休息状态设置或更新紧急口令。
-- `get_screen_break_release_requests()`：查看手机恢复申请。
 
 ## 到访记录
 
@@ -166,23 +149,10 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 
 ## 安全边界
 
-- 截图、读屏、点击、输入、自动评论、门禁、屏幕休息和息屏都属于敏感能力。
 - 只在本人设备、本人服务、本人授权的 MCP 客户端中使用。
 - 不要把 Token 发给陌生客户端。
 - 自动发送评论、自动点击和输入建议默认手动确认。
 - 公开版不包含私人 Token、私人服务地址、固定私人关系和不可公开的专属接口。
-
-## v0.3.6.6 应用门禁兼容工具名
-
-为避免部分 AI 平台读取到 `/health` 动作清单后调用旧动作名时报 `Tool not found`，MCP 额外暴露以下兼容工具：
-
-- `get_lock_state`：等同 `get_screen_break_state`，读取应用门禁状态。
-- `lock_app`：等同 `screen_break_app`，开启应用门禁。
-- `unlock_app`：等同 `end_screen_break`，解除应用门禁。
-- `temporary_unlock_app`：等同 `temporary_screen_break_release`，临时放行。
-- `extend_lock`：等同 `extend_screen_break`，延长门禁。
-- `deny_unlock_request`：等同 `deny_screen_break_release_request`，拒绝恢复申请。
-- `list_lockable_apps`、`add_locked_app`、`remove_locked_app`、`set_emergency_passphrase`：旧版命名兼容。
 
 
 ## v0.3.8.6 小金库双向申请工具
@@ -225,8 +195,6 @@ Render 一键部署时，`LINJIAN_URL` 会由 Blueprint 自动引用 server 的�
 常用 action 示例：`submit_companion_wallet_request`、`list_companion_wallet_requests`、`save_user_wallet_request_result`、`get_takeout_state`、`prepare_takeout_checkout`。
 
 
-## v0.3.8.6 专注模式工具与日记本重命名修复
 
-专注模式必须在 MCP 工具列表中暴露：`get_focus_status`、`start_focus_mode`、`end_focus_mode`、`set_focus_plan`、`reply_focus_request`、`approve_focus_unlock`、`deny_focus_unlock`。用户说“帮我专注/锁手机/开专注模式/别让我玩手机”时优先调用 `start_focus_mode`；锁单个 App 才使用应用门禁。
 
 `rename_diary_book` 已支持缺少 `book_id` 时自动处理：传 `old_name + new_name` 可按名字匹配；如果手机端只有一本日记本，只传 `new_name` 也会自动重命名。用户要求改名时不要反复调用 `list_diary_books`。
